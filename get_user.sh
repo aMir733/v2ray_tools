@@ -9,7 +9,7 @@ c_net="$(cat "$file_config" | jq -r '.inbounds[] | select(.protocol=="vmess").st
 email="$(grep -F "$1" "$file_config" | tr -d ' ,"' | sed 's/^email://')"
 
 [[ ${#addr} == 0 ]] && exit 1
-[[ "$(echo "$email" | wc -l)" != 1 ]] && { echo "no user or multiple users" ; exit 1 ;}
+[[ "$(echo -n "$email" | grep -c '^')" != 1 ]] && { echo "no user or multiple users" ; exit 1 ;}
 uuid="$(cat "$file_config" | jq -r '.inbounds[] | select(.protocol=="vmess").settings.clients[] | select(.email=="'$email'").id')"
 [[ ${#uuid} == 0 ]] && exit 1
 final="vmess://$(echo -n '{"add":"'$addr'","aid":"0","host":"'$c_host'","id":"'$uuid'","net":"'$c_net'","path":"'$c_path'","port":"'$c_port'","ps":"mobileaftab","scy":"none","sni":"","tls":"","type":"","v":"2"}' | base64 --wrap=0)"

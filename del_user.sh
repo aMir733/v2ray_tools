@@ -7,7 +7,7 @@ v2ray=v2ray
 uuid_new="$($v2ray uuid)"
 email="$(grep -F "$1" "$file_config" | tr -d ' ,"' | sed 's/^email://')"
 
-[[ "$(echo "$email" | wc -l)" != 1 ]] && { echo "no user or multiple users" ; exit 1 ;}
+[[ "$(echo -n "$email" | grep -c '^')" != 1 ]] && { echo "no user or multiple users" ; exit 1 ;}
 
 user_jq='.inbounds[] | select(.protocol=="vmess").settings.clients[] | select(.email=="'$email'")'
 uuid_old="$(cat "$file_config" | jq -r "${user_jq}.id")"
