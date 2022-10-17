@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
+# Restarts $SERVICE on all servers in $SERVERS
+# Usage: script.sh
 
+# File containing the IP address of all your servers
 SERVERS=/root/v2ray/servers
+# systemd v2ray service name
 SERVICE=v2ray@bridge
 
 for server in $(cat "$SERVERS") ; do

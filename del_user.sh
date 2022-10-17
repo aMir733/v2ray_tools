@@ -1,13 +1,20 @@
 #!/usr/bin/env bash
+# Invalidates a user's UUID.
+# Usage: script.sh partial@email
 
+# Configuration file
 file_config=/etc/v2ray/bridge.json
+# Where to save the edited configuration file (Used in apply_config.sh)
 file_newconfig=/root/v2ray/bridge.json_new
+# Where to save pending deleted users (Used in apply_config.sh)
 file_deleted=/root/v2ray/deleted_pending
+# Path to v2ray
 v2ray=v2ray
+# How to generate the uuid
 uuid_new="$($v2ray uuid)"
-email="$(grep -F "$1" "$file_config" | tr -d ' ,"' | sed 's/^email://')"
 
-[[ "$(echo -n "$email" | grep -c '^')" != 1 ]] && { echo "no user or multiple users" ; exit 1 ;}
+email="$(grep -F "$1" "$file_config" | tr -d ' ,"' | sed 's/^email://')"
+[[ "$(echo "$email" | wc -l)" != 1 ]] && { echo "no user or multiple users" ; exit 1 ;}
 
 user_jq='.inbounds[] | select(.protocol=="vmess").settings.clients[] | select(.email=="'$email'")'
 uuid_old="$(cat "$file_config" | jq -r "${user_jq}.id")"
