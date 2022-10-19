@@ -54,10 +54,10 @@ parse_args () {
 }
 
 output() {
-    echo "$0 [$1]: $2"
+    echo "[$1]: $2"
     case $1 in
         ERROR) touch "$FILE_EXITERROR" ; exit 1 ;;
-        ASK) read -p "(Y/n): " answer && [[ ${#answer} == 0 ]] || [[ $answer == [Yy] ]] || exit 1 ;;
+        ASK) read -s -n 1 -p "(Y/n): " answer && [[ ${#answer} == 0 ]] || [[ $answer == [Yy] ]] || exit 1 ;;
     esac
 }
 
@@ -98,7 +98,7 @@ add_user() {
     for user in ${args[@]} ; do
         [[ "$user" =~ ^[0-9]+@.+ ]] || output WARNING "Skipping $user: not valid"
         grep -wF "${user#*@}" "$FILE_NEWCONFIG" && output ERROR "User $user exists"
-        uuid="$($V2RAY uuid)"
+        uuid="$($PATH_V2RAY uuid)"
         cat "$FILE_NEWCONFIG" \
             | jq -r '('"$QUERY_INBOUND"'.settings.clients) += [{"id":"'$uuid'","email":"'$user'","level":1,"alterId":0}]' \
             | tee "$FILE_NEWCONFIG" >/dev/null
@@ -115,7 +115,7 @@ del_user() {
         [[ $(wc -l <<< "$email") != 1 ]] && output ERROR "No user was found. Or multiple users were found."
         user_jq="$QUERY_INBOUND"'.settings.clients[] | select(.email=="'$email'")'
         uuid_old="$(jq -r "${user_jq}.id" "$FILE_NEWCONFIG")"
-        uuid_new="$($V2RAY uuid)"
+        uuid_new="$($PATH_V2RAY uuid)"
         jq -r '('"$user_jq"').id = "'"$uuid_new"'"' "$FILE_NEWCONFIG" | tee "$FILE_NEWCONFIG" >/dev/null
         echo "$email $uuid_old" >> ${FILE_DELETED}_pending
     done
