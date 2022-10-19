@@ -19,6 +19,7 @@ QUERY_INBOUND='if .inbounds == null then .inbound else .inbounds[] end | select(
 
 
 main () {
+    [[ -f "$FILE_CONFIG" ]] || output ERROR "Could not find configuration file $FILE_CONFIG"
     if [[ "$1" =~ ^- ]] ;then
         output WARNING "Skipping $1. Please specify the flags after the main parameter"
     else
@@ -63,7 +64,7 @@ output() {
 # Outputs user's information in QR code and a link ready to be used in a v2ray client (shadowlink, v2rayng, nekoray)
 # Usage: ... -s [IP address] -n [VPN Name on client's phone/computer]
 get_user() {
-    parse_args
+    parse_args $@
     [[ ${#vpn_name} == 0 ]] && vpn_name="$NAME_VPN"
     [[ ${#vpn_name} == 0 ]] && { output WARNING "No VPN Name was set. Using the default name (server)" ; vpn_name=server ;}
     [[ ${#addr} == 0 ]] && output ERROR "No IP address was set."
@@ -88,7 +89,7 @@ get_user() {
 
 # Adds a new user to the configuration file
 add_user() {
-    parse_args
+    parse_args $@
     check_unapplied
     [[ -f "$FILE_NEWCONFIG" ]] && cmp -s -- "$FILE_CONFIG" "$FILE_NEWCONFIG" \
         || output ASK "You have un-applied configuration file located at $FILE_NEWCONFIG. Are you sure you want to continue?"
@@ -134,7 +135,7 @@ check() {
     # For other servers, you should make a directory called srv123 where 123 is the number your server's IP address ends in
     # Your server should also be in the $SERVERS file
     # Use lsyncd if you have several servers and want to gather all the logs into this current running server
-    parse_args
+    parse_args $@
     dest="$DIR_SCRIPT/access.log_temp"
     [[ ${#wait_time} == 0 ]] && wait_time=90
     [[ "$(jq -Mr '.log.access' "$FILE_CONFIG")" != "$DIR_LOG/access.log" ]] && \
