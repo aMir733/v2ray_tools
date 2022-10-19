@@ -3,9 +3,9 @@
 # Usage: script.sh full@email
 
 # Configuration file
-file_config=/etc/v2ray/bridge.json
+file_config=/etc/v2ray/config.json
 # Where to save the edited configuration file (Used in apply_config.sh)
-file_newconfig=/root/v2ray/bridge.json_new
+file_newconfig=/root/v2ray/config.json_new
 # Path to v2ray binary (leave it as it is if it's in your path)
 v2ray=v2ray
 # How to generate the uuid

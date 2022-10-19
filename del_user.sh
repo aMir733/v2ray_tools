@@ -3,9 +3,9 @@
 # Usage: script.sh partial@email
 
 # Configuration file
-file_config=/etc/v2ray/bridge.json
+file_config=/etc/v2ray/config.json
 # Where to save the edited configuration file (Used in apply_config.sh)
-file_newconfig=/root/v2ray/bridge.json_new
+file_newconfig=/root/v2ray/config.json_new
 # Where to save pending deleted users (Used in apply_config.sh)
 file_deleted=/root/v2ray/deleted_pending
 # Path to v2ray

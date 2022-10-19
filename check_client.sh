@@ -3,7 +3,7 @@
 # Usage: script.sh /path/to/log/file
 
 # Configuration file
-file_config=/etc/v2ray/bridge.json
+file_config=/etc/v2ray/config.json
 # Log file
 file_log="$1"
 # Where to report naughty users :)

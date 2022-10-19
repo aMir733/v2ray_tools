@@ -8,7 +8,7 @@
 # But this will prevent you from using the SizeOfQrCode arg
 addr=${2}
 # Configuration file
-file_config=/etc/v2ray/bridge.json
+file_config=/etc/v2ray/config.json
 # Name of the VPN config on user's phone/computer
 name_vpn=server
 
