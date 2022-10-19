@@ -70,10 +70,9 @@ get_user() {
     [[ ${#addr} == 0 ]] && output ERROR "No IP address was set."
     [[ ${#qr_size} == 0 ]] && [[ $(tput cols) < 65 ]] && qr_size=1 || qr_size=2
     for user in ${args[@]} ; do
-        echo $user
         email="$(jq -r "$QUERY_INBOUND"'.settings.clients[] | select(.email | test("'"$user"'")).email' "$FILE_CONFIG")"
+        [[ $(echo -n "$email" | wc -l) != 1 ]] && output ERROR "No user was found. Or multiple users were found."
         for i in $email ; do output INFO "Found $email" ; done
-        [[ $(wc -l <<< "$email") != 1 ]] && output ERROR "No user was found. Or multiple users were found."
         c_port="$(jq -r "${QUERY_INBOUND}.port" "$FILE_CONFIG")"
         c_host="$(jq -r "${QUERY_INBOUND}.streamSettings.headers.Host" "$FILE_CONFIG")"
         c_path="$(jq -r "${QUERY_INBOUND}.streamSettings.path" "$FILE_CONFIG")"
@@ -92,8 +91,6 @@ get_user() {
 add_user() {
     parse_args $@
     check_unapplied
-    [[ -f "$FILE_NEWCONFIG" ]] && cmp -s -- "$FILE_CONFIG" "$FILE_NEWCONFIG" \
-        || output ASK "You have un-applied configuration file located at $FILE_NEWCONFIG. Are you sure you want to continue?"
     cp "$FILE_CONFIG" "$FILE_NEWCONFIG"
     for user in ${args[@]} ; do
         [[ "$user" =~ ^[0-9]+@.+ ]] || output WARNING "Skipping $user: not valid"
@@ -111,8 +108,8 @@ del_user() {
     cp "$FILE_CONFIG" "$FILE_NEWCONFIG"
     for user in ${args[@]} ; do
         email="$(jq -r "$QUERY_INBOUND"'.settings.clients[] | select(.email | test("'"$user"'")).email' "$FILE_NEWCONFIG")"
-        for i in $email ; do output INFO "found $email" ; done
-        [[ $(wc -l <<< "$email") != 1 ]] && output ERROR "No user was found. Or multiple users were found."
+        [[ $(echo -n "$email" | wc -l) != 1 ]] && output ERROR "No user was found. Or multiple users were found."
+        for i in $email ; do output INFO "Found $email" ; done
         user_jq="$QUERY_INBOUND"'.settings.clients[] | select(.email=="'$email'")'
         uuid_old="$(jq -r "${user_jq}.id" "$FILE_NEWCONFIG")"
         uuid_new="$($PATH_V2RAY uuid)"
