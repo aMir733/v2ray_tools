@@ -11,7 +11,7 @@ file_strikes=/root/v2ray_tools/strikes
 # Where to reports overall usage
 file_usage=/root/v2ray_tools/usage
 # jq query to get the right inbound
-jq_inbound='if .inbounds == null then .inbound[] else .inbounds[] end | select(.protocol=="vmess" or .protocol=="vless")'
+jq_inbound='if .inbounds == null then .inbound else .inbounds[] end | select(.protocol=="vmess" or .protocol=="vless")'
 
 cur_all=0
 max_all=0

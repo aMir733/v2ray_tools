@@ -13,7 +13,7 @@ v2ray=v2ray
 # How to generate the uuid
 uuid_new="$($v2ray uuid)"
 # jq query to get the right inbound
-jq_inbound='if .inbounds == null then .inbound[] else .inbounds[] end | select(.protocol=="vmess" or .protocol=="vless")'
+jq_inbound='if .inbounds == null then .inbound else .inbounds[] end | select(.protocol=="vmess" or .protocol=="vless")'
 
 email="$(grep -F "$1" "$file_config" | tr -d ' ,"' | sed 's/^email://')"
 [[ "$(echo "$email" | wc -l)" != 1 ]] && { echo "no user or multiple users" ; exit 1 ;}

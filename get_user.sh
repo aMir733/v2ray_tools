@@ -12,7 +12,7 @@ file_config=/etc/v2ray/config.json
 # Name of the VPN config on user's phone/computer
 name_vpn=server
 # jq query to get the right inbound
-jq_inbound='if .inbounds == null then .inbound[] else .inbounds[] end | select(.protocol=="vmess" or .protocol=="vless")'
+jq_inbound='if .inbounds == null then .inbound else .inbounds[] end | select(.protocol=="vmess" or .protocol=="vless")'
 
 c_port="$(cat "$file_config" | jq -r "$jq_inbound"'.port')"
 c_host="$(cat "$file_config" | jq -r "$jq_inbound"'.streamSettings.headers.Host')"
