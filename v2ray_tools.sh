@@ -68,10 +68,11 @@ get_user() {
     [[ ${#vpn_name} == 0 ]] && vpn_name="$NAME_VPN"
     [[ ${#vpn_name} == 0 ]] && { output WARNING "No VPN Name was set. Using the default name (server)" ; vpn_name=server ;}
     [[ ${#addr} == 0 ]] && output ERROR "No IP address was set."
-    [[ ${#qr_size} == 0 ]] && [[ $(tput col) < 65 ]] && qr_size=1 || qr_size=2
+    [[ ${#qr_size} == 0 ]] && [[ $(tput cols) < 65 ]] && qr_size=1 || qr_size=2
     for user in ${args[@]} ; do
+        echo $user
         email="$(jq -r "$QUERY_INBOUND"'.settings.clients[] | select(.email | test("'"$user"'")).email' "$FILE_CONFIG")"
-        for i in $email ; do output INFO "found $email" ; done
+        for i in $email ; do output INFO "Found $email" ; done
         [[ $(wc -l <<< "$email") != 1 ]] && output ERROR "No user was found. Or multiple users were found."
         c_port="$(jq -r "${QUERY_INBOUND}.port" )"
         c_host="$(jq -r "${QUERY_INBOUND}.streamSettings.headers.Host" "$FILE_CONFIG")"
@@ -80,9 +81,9 @@ get_user() {
         uuid="$(jq -r "$QUERY_INBOUND"'.settings.clients[] | select(.email=="'"$email"'").id' "$FILE_CONFIG")"
         [[ ${#uuid} == 0 ]] && output ERROR "No UUID was set for user $email"
         final="vmess://$(base64 -w 0 <<< '{"add":"'$addr'","aid":"0","host":"'$c_host'","id":"'$uuid'","net":"'$c_net'","path":"'$c_path'","port":"'$c_port'","ps":"'$vpn_name'","scy":"none","sni":"","tls":"","type":"","v":"2"}')"
-        qrencode -m 1 -t utf8 <<< "$final"
+        qrencode -m $qr_size -t utf8 <<< "$final"
         echo "$final"
-        cat "$FILE_CONFIG" | jq -r "$QUERY_INBOUND"'.settings.clients[] | select(.email=="'"$email"'")'
+        jq -r "$QUERY_INBOUND"'.settings.clients[] | select(.email=="'"$email"'")' "$FILE_CONFIG"
         output INFO "Assigned IP address: $addr"
     done
 }
