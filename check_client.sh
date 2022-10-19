@@ -7,9 +7,9 @@ file_config=/etc/v2ray/config.json
 # Log file
 file_log="$1"
 # Where to report naughty users :)
-file_strikes=/root/v2ray/strikes
+file_strikes=/root/v2ray_tools/strikes
 # Where to reports overall usage
-file_usage=/root/v2ray/usage
+file_usage=/root/v2ray_tools/usage
 
 cur_all=0
 max_all=0

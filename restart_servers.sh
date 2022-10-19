@@ -3,7 +3,7 @@
 # Usage: script.sh
 
 # File containing the IP address of all your servers
-SERVERS=/root/v2ray/servers
+SERVERS=/root/v2ray_tools/servers
 # systemd v2ray service name
 SERVICE=v2ray@bridge
 

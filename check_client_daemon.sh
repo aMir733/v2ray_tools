@@ -3,9 +3,9 @@
 # Usage: script.sh
 
 # Path to the file containing the IP addresses of your servers (use this for currently running server)
-SERVERS=/root/v2ray/servers
+SERVERS=/root/v2ray_tools/servers
 # Where to put the email address of naughty users
-STRIKES=/root/v2ray/strikes
+STRIKES=/root/v2ray_tools/strikes
 # The directory containing the logs from all of your servers (for the current server there should be a file named access.log in this directory)
 # For other servers, you should make a directory called srv123 where 123 is the number your server's IP address ends in
 # Your server should also be in the $SERVERS file
@@ -38,7 +38,7 @@ while true ; do
 		fi
 		cat $LOG_DIR/srv${server##*.}/access.log >> $DEST
 	done
-	/root/v2ray/check_client.sh $DEST
+	/root/v2ray_tools/check_client.sh $DEST
 	echo '--------------------------'
 	rm -f $DEST
 done

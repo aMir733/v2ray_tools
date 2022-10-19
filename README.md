@@ -11,12 +11,13 @@ To elaborate:
 # How do I use it?
 
 ```
-mkdir /root/v2ray
-cd /root/v2ray
-git clone https://github.com/aMir733/v2ray_tools
 mkdir -p /etc/v2ray
-cp [your v2ray config file] /etc/v2ray/config.json
-command -v v2ray || cp [your v2ray binary] /usr/local/bin/v2ray
+install -m 0600 -o root [your v2ray config file] /etc/v2ray/config.json
+cd /root
+git clone https://github.com/aMir733/v2ray_tools v2ray_tools
+cd v2ray_tools
+install -o root -m 755 -t /etc/systemd/system/ systemd/system/*
+command -v v2ray || install -m 0755 -o root [v2ray binary] /usr/local/bin/v2ray
 ```
 
 It's not a program. It's just a bunch of bash scripts. YOU NEED TO READ EVERY SINGLE FILE IN THIS REPOSITORY BEFORE RUNNING THEM ON YOUR SERVER. Check what argument each script takes and run them accordingly. Do not expect a plug-and-play experience. I didn't have time to make a manual page or a help message for each script. They're all simple enough to understand even as a new-bie.
