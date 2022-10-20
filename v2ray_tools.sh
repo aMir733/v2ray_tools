@@ -9,7 +9,6 @@ FILE_DELETED="$DIR_SCRIPT/deleted"
 FILE_STRIKES="$DIR_SCRIPT/strikes"
 FILE_USAGE="$DIR_SCRIPT/usage"
 FILE_SERVERS="$DIR_SCRIPT/servers"
-FILE_STRIKES="$DIR_SCRIPT/strikes"
 FILE_EXITERROR="/tmp/v2ray_tools_error"
 NAME_SERVICE="v2ray@$(basename -- "$FILE_CONFIG" | sed 's/\.[^.]*$//')"
 NAME_VPN=
@@ -26,10 +25,7 @@ main () {
         case "$1" in
             get) shift ; get_user $@ ;;
             add) shift ; add_user $@ ;;
-            del) shift ; del_user $@ ;;
-            check) shift ; check $@ ;;
-            apply) shift ; apply ;;
-            restart) shift ; restart_v2ray ;;
+            del) shift ; del_user $@ ;; check) shift ; check $@ ;; apply) shift ; apply ;; restart) shift ; restart_v2ray ;;
             *) output ERROR "Unknown parameter: $1"
         esac
     fi
@@ -43,7 +39,7 @@ parse_args () {
                 -n|--vpn-name) vpn_name="$2" ; shift ;;
                 -q|--qr-size) [[ "$2" =~ ^[1-2]$ ]] && qr_size="$2" || output ERROR "$1 $2 is not valid. $1 should be set to either 1 or 2" ; shift ;;
                 -w|--wait) [[ "$2" =~ ^[0-9]+[sm]?$ ]] && wait_time=$2 || output ERROR "$1 $2 is not valied. $1 should be set to an integer (optionally followed by either m or s)" ; shift ;;
-                -a|--all) all=1 ; shift ;;
+                -a|--all) all=1 ;;
                 *) output WARNING "Unknown parameter passed: $1" ;;
             esac
         else
@@ -57,7 +53,7 @@ output() {
     echo "[$1]: $2"
     case $1 in
         ERROR) touch "$FILE_EXITERROR" ; exit 1 ;;
-        ASK) read -s -n 1 -p "(Y/n): " answer && [[ ${#answer} == 0 ]] || [[ $answer == [Yy] ]] || exit 1 ;;
+        ASK) read -p "(Y/n): " answer && [[ ${#answer} == 0 ]] || [[ $answer == [Yy] ]] || exit 1 ;;
     esac
 }
 
@@ -68,10 +64,10 @@ get_user() {
     [[ ${#vpn_name} == 0 ]] && vpn_name="$NAME_VPN"
     [[ ${#vpn_name} == 0 ]] && { output WARNING "No VPN Name was set. Using the default name (server)" ; vpn_name=server ;}
     [[ ${#addr} == 0 ]] && output ERROR "No IP address was set."
-    [[ ${#qr_size} == 0 ]] && [[ $(tput cols) < 65 ]] && qr_size=1 || qr_size=2
+    [[ ${#qr_size} == 0 ]] && { [[ $(tput cols) -lt 65 ]] && qr_size=1 || qr_size=2 ;}
     for user in ${args[@]} ; do
         email="$(jq -r "$QUERY_INBOUND"'.settings.clients[] | select(.email | test("'"$user"'")).email' "$FILE_CONFIG")"
-        [[ $(echo -n "$email" | wc -l) != 1 ]] && output ERROR "No user was found. Or multiple users were found."
+        [[ $(echo -n "$email" | grep "^") != 1 ]] && output ERROR "No user was found. Or multiple users were found."
         for i in $email ; do output INFO "Found $email" ; done
         c_port="$(jq -r "${QUERY_INBOUND}.port" "$FILE_CONFIG")"
         c_host="$(jq -r "${QUERY_INBOUND}.streamSettings.headers.Host" "$FILE_CONFIG")"
@@ -96,24 +92,25 @@ add_user() {
         [[ "$user" =~ ^[0-9]+@.+ ]] || output WARNING "Skipping $user: not valid"
         grep -wF "${user#*@}" "$FILE_NEWCONFIG" && output ERROR "User $user exists"
         uuid="$($PATH_V2RAY uuid)"
-        cat "$FILE_NEWCONFIG" \
-            | jq -r '('"$QUERY_INBOUND"'.settings.clients) += [{"id":"'$uuid'","email":"'$user'","level":1,"alterId":0}]' \
-            | tee "$FILE_NEWCONFIG" >/dev/null
+        jq -r '('"$QUERY_INBOUND"'.settings.clients) += [{"id":"'$uuid'","email":"'$user'","level":1,"alterId":0}]' "$FILE_NEWCONFIG" > "${FILE_NEWCONFIG}_temp"
+        mv "${FILE_NEWCONFIG}_temp" "$FILE_NEWCONFIG"
     done
 }
 
 # Invalidates a user's UUID.
 del_user() {
+    parse_args $@
     check_unapplied
     cp "$FILE_CONFIG" "$FILE_NEWCONFIG"
     for user in ${args[@]} ; do
         email="$(jq -r "$QUERY_INBOUND"'.settings.clients[] | select(.email | test("'"$user"'")).email' "$FILE_NEWCONFIG")"
-        [[ $(echo -n "$email" | wc -l) != 1 ]] && output ERROR "No user was found. Or multiple users were found."
+        [[ $(echo -n "$email" | grep "^") != 1 ]] && output ERROR "No user was found. Or multiple users were found."
         for i in $email ; do output INFO "Found $email" ; done
         user_jq="$QUERY_INBOUND"'.settings.clients[] | select(.email=="'$email'")'
         uuid_old="$(jq -r "${user_jq}.id" "$FILE_NEWCONFIG")"
         uuid_new="$($PATH_V2RAY uuid)"
-        jq -r '('"$user_jq"').id = "'"$uuid_new"'"' "$FILE_NEWCONFIG" | tee "$FILE_NEWCONFIG" >/dev/null
+        jq -r '('"$user_jq"').id = "'"$uuid_new"'"' "$FILE_NEWCONFIG" > "${FILE_NEWCONFIG}_tmp"
+        mv "${FILE_NEWCONFIG}_tmp" "$FILE_NEWCONFIG"
         echo "$email $uuid_old" >> ${FILE_DELETED}_pending
     done
 }
@@ -141,21 +138,21 @@ check() {
     [[ -f "$FILE_SERVERS" ]] || \
         { output WARNING "You did not create the servers file: $FILE_SERVERS. Creating one for you..." ; echo this > "$FILE_SERVERS" ;}
     
-    :> $STRIKES
+    :> $FILE_STRIKES
     while true ; do
-            for server in "$(cat "$FILE_SERVERS")" ; do
+            cat "$FILE_SERVERS" | while read server ; do
                     if [[ $server == this ]] ; then
                             :> $DIR_LOG/access.log
                             continue
                     fi
                     ssh root@$server "echo -n '' > $DIR_LOG/access.log"
             done
-            i=0 ; while [ $i -lt $WAIT ] ; do
+            i=0 ; while [ $i -lt $wait_time ] ; do
                     sleep 1
-                    echo -ne "${i}/${WAIT}\r"
+                    echo -ne "${i}/${wait_time}\r"
                     i=$(($i+1))
             done
-            for server in "$(cat "$FILE_SERVERS")" ; do
+            cat "$FILE_SERVERS" | while read server ; do
                     if [[ $server == this ]] ; then
                             cat $DIR_LOG/access.log >> $dest
                             continue
@@ -164,9 +161,8 @@ check() {
             done
             cur_all=0
             max_all=0
-            emails="$(jq -r "$QUERY_INBOUND"'.settings.clients[] | .email' "$FILE_CONFIG")"
             echo "----> $(date +%y%m%d_%H%M%S):" | tee -a "$FILE_USAGE"
-            for email in "$emails" ; do
+            for email in $(jq -r "$QUERY_INBOUND"'.settings.clients[] | .email' "$FILE_CONFIG") ; do
                     cur_conn="$(grep -wF "email: $email" "$dest" | cut -d' ' -f3 | cut -d':' -f1 | sort | uniq | wc -l)"
                     max_conn="${email%@*}"
                     if ! [[ "$max_conn" =~ ^[0-9]+$ ]] ; then
@@ -186,7 +182,7 @@ check() {
 
 # Restarts v2ray's service on all servers in servers file
 restart_v2ray() {
-    for server in "$(cat "$FILE_SERVERS")" ; do
+    cat "$FILE_SERVERS" | while read server ; do
             output INFO "Restarting $NAME_SERVICE on $server server"
             [[ $server == this ]] && { systemctl restart $NAME_SERVICE ; continue ;}
             ssh root@$server systemctl restart $NAME_SERVICE || { output WARNING "Skipping $server: failed to restart" ;}
@@ -194,8 +190,9 @@ restart_v2ray() {
 }
 
 check_unapplied() {
-    [[ -f "$FILE_NEWCONFIG" ]] && cmp -s -- "$FILE_CONFIG" "$FILE_NEWCONFIG" \
-        || output ASK "You have un-applied configuration file located at $FILE_NEWCONFIG. Are you sure you want to continue?"
+    [[ -f "$FILE_NEWCONFIG" ]] && { cmp -s -- "$FILE_CONFIG" "$FILE_NEWCONFIG" \
+        || output ASK "You have un-applied configuration file located at $FILE_NEWCONFIG. Are you sure you want to continue?" ;}
 }
 
 main $@
+rm -f "$FILE_EXITERROR"
