@@ -67,7 +67,7 @@ get_user() {
     [[ ${#qr_size} == 0 ]] && { [[ $(tput cols) -lt 65 ]] && qr_size=1 || qr_size=2 ;}
     for user in ${args[@]} ; do
         email="$(jq -r "$QUERY_INBOUND"'.settings.clients[] | select(.email | test("'"$user"'")).email' "$FILE_CONFIG")"
-        [[ $(echo -n "$email" | grep "^") != 1 ]] && output ERROR "No user was found. Or multiple users were found."
+        [[ $(echo -n "$email" | grep -c "^") != 1 ]] && output ERROR "No user was found. Or multiple users were found."
         for i in $email ; do output INFO "Found $email" ; done
         c_port="$(jq -r "${QUERY_INBOUND}.port" "$FILE_CONFIG")"
         c_host="$(jq -r "${QUERY_INBOUND}.streamSettings.headers.Host" "$FILE_CONFIG")"
@@ -104,7 +104,7 @@ del_user() {
     cp "$FILE_CONFIG" "$FILE_NEWCONFIG"
     for user in ${args[@]} ; do
         email="$(jq -r "$QUERY_INBOUND"'.settings.clients[] | select(.email | test("'"$user"'")).email' "$FILE_NEWCONFIG")"
-        [[ $(echo -n "$email" | grep "^") != 1 ]] && output ERROR "No user was found. Or multiple users were found."
+        [[ $(echo -n "$email" | grep -c "^") != 1 ]] && output ERROR "No user was found. Or multiple users were found."
         for i in $email ; do output INFO "Found $email" ; done
         user_jq="$QUERY_INBOUND"'.settings.clients[] | select(.email=="'$email'")'
         uuid_old="$(jq -r "${user_jq}.id" "$FILE_NEWCONFIG")"
