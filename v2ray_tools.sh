@@ -25,17 +25,21 @@ QUERY_INBOUND='if .inbounds == null then .inbound else .inbounds[] end | select(
 
 
 main () {
-    [[ -f "$FILE_CONFIG" ]] || output ERROR "Could not find configuration file $FILE_CONFIG"
-    if [[ "$1" =~ ^- ]] ;then
-        output WARNING "Skipping $1. Please specify the flags after the main parameter"
+    [[ $# -eq 0 ]] && output HELP "Nothing to do!"
+    if [[ "$1" =~ ^- ]] ; then
+        output HELP "Unknown parameter: $1"
     else
         case "$1" in
             get) shift ; get_user $@ ;;
             add) shift ; add_user $@ ;;
-            del) shift ; del_user $@ ;; check) shift ; check $@ ;; apply) shift ; apply ;; restart) shift ; restart_v2ray ;;
-            *) output ERROR "Unknown parameter: $1"
+            del) shift ; del_user $@ ;; 
+            check) shift ; check $@ ;; 
+            apply) shift ; apply ;; 
+            restart) shift ; restart_v2ray ;;
+            *) output HELP "Unknown parameter: $1"
         esac
     fi
+    rm -f "$FILE_EXITERROR"
 }
 
 parse_args () {
@@ -44,10 +48,10 @@ parse_args () {
             case "$1" in
                 -i|--ip-address) [[ "$2" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] && FLAG_ADDRESS="$2" || output ERROR "Not an IP address: $2" ; shift ;;
                 -n|--vpn-name) FLAG_VPNNAME="$2" ; shift ;;
-                -q|--qr-size) [[ "$2" =~ ^[0-2]$ ]] && FLAG_QRSIZE="$2" || output ERROR "$1 $2 is not valid. $1 should be between 0-2." ; shift ;;
-                -w|--wait) [[ "$2" =~ ^[0-9]+[sm]?$ ]] && FLAG_WAITTIME="$2" || output ERROR "$1 $2 is not valied. $1 should be set to an integer (optionally followed by either m or s)" ; shift ;;
+                -q|--qr-size) [[ "$2" =~ ^[0-2]$ ]] && FLAG_QRSIZE="$2" || output HELP "$1 $2 is not valid. $1 should be between 0-2." ; shift ;;
+                -w|--wait) [[ "$2" =~ ^[0-9]+[sm]?$ ]] && FLAG_WAITTIME="$2" || output HELP "$1 $2 is not valied. $1 should be set to an integer (optionally followed by either m or s)" ; shift ;;
                 -a|--all) FLAG_ALLUSERS=1 ;;
-                *) output WARNING "Unknown parameter passed: $1" ;;
+                *) output HELP "Unknown parameter passed: $1" ;;
             esac
         else
             args+=("$1")
@@ -60,6 +64,7 @@ output() {
     echo "[$1]: $2"
     case $1 in
         ERROR) touch "$FILE_EXITERROR" ; exit 1 ;;
+        HELP) print_usage ; exit 1 ;;
         ASK) read -p "(Y/n): " answer && [[ ${#answer} == 0 ]] || [[ $answer == [Yy] ]] || exit 1 ;;
     esac
 }
@@ -68,6 +73,7 @@ output() {
 # Usage: ... -s [IP address] -n [VPN Name on client's phone/computer]
 get_user() {
     parse_args $@
+    [[ -f "$FILE_CONFIG" ]] || output ERROR "Could not find configuration file $FILE_CONFIG"
     [[ "${FLAG_QRSIZE}" == 0 ]] && { [[ $(tput cols) -lt 65 ]] && FLAG_QRSIZE=1 || FLAG_QRSIZE=2 ;}
     for user in ${args[@]} ; do
         email="$(jq -r "$QUERY_INBOUND"'.settings.clients[] | select(.email | test("'"$user"'")).email' "$FILE_CONFIG")"
@@ -79,6 +85,7 @@ get_user() {
         c_net="$(jq -r "${QUERY_INBOUND}.streamSettings.network" "$FILE_CONFIG")"
         uuid="$(jq -r "$QUERY_INBOUND"'.settings.clients[] | select(.email=="'"$email"'").id' "$FILE_CONFIG")"
         [[ ${#uuid} == 0 ]] && output ERROR "No UUID was set for user $email"
+        # TODO: Output vless link if protocol is set to vless
         final="$(base64 -w 0 <<< '{"add":"'$FLAG_ADDRESS'","aid":"0","host":"'$c_host'","id":"'$uuid'","net":"'$c_net'","path":"'$c_path'","port":"'$c_port'","ps":"'$FLAG_VPNNAME'","scy":"'$FLAG_SECURITY'","sni":"","tls":"","type":"","v":"2"}')"
         echo -n "vmess://${final}" | qrencode -o - -m "$FLAG_QRSIZE" -t utf8
         echo "vmess://${final}"
@@ -89,6 +96,7 @@ get_user() {
 # Adds a new user to the configuration file
 add_user() {
     parse_args $@
+    [[ -f "$FILE_CONFIG" ]] || output ERROR "Could not find configuration file $FILE_CONFIG"
     check_unapplied
     cp "$FILE_CONFIG" "$FILE_NEWCONFIG"
     for user in ${args[@]} ; do
@@ -103,6 +111,7 @@ add_user() {
 # Invalidates a user's UUID.
 del_user() {
     parse_args $@
+    [[ -f "$FILE_CONFIG" ]] || output ERROR "Could not find configuration file $FILE_CONFIG"
     check_unapplied
     cp "$FILE_CONFIG" "$FILE_NEWCONFIG"
     for user in ${args[@]} ; do
@@ -120,6 +129,7 @@ del_user() {
 
 # Simply applies the configuration file located at $FILE_NEWCONFIG to $FILE_CONFIG
 apply() {
+    [[ -f "$FILE_CONFIG" ]] || output ERROR "Could not find configuration file $FILE_CONFIG"
     [[ -f "$FILE_EXITERROR" ]] && { rm -f "$FILE_EXITERROR"; output ASK "Last run was not successful. Are you sure you want to continue?" ;}
     cp "$FILE_CONFIG" "$FILE_OLDCONFIG"
     cp "$FILE_NEWCONFIG" "$FILE_CONFIG"
@@ -134,6 +144,7 @@ check() {
     # Your server should also be in the $SERVERS file
     # Use lsyncd if you have several servers and want to gather all the logs into this current running server
     parse_args $@
+    [[ -f "$FILE_CONFIG" ]] || output ERROR "Could not find configuration file $FILE_CONFIG"
     dest="$DIR_SCRIPT/access.log_temp"
     [[ "$(jq -Mr '.log.access' "$FILE_CONFIG")" != "$DIR_LOG/access.log" ]] && \
         output ERROR "Your access log is not set to $DIR_LOG/access.log . Please make sure you create the $DIR_LOG directory first before changing it in your configuration file"
@@ -196,5 +207,13 @@ check_unapplied() {
         || output ASK "You have un-applied configuration file located at $FILE_NEWCONFIG. Are you sure you want to continue?" ;}
 }
 
+print_usage() {
+    printf "%b" "Usage: ${0} [command] [-inqwa]\n\tcommand)\n\t\tadd) Add new users\n\t\tdel) Invalidate users UUID\n\t\tget) Get user's QR code and link\n\t\tapply) Applies the configuration located at ${FILE_NEWCONFIG} to ${FILE_CONFIG}\n\t\tcheck) Checks the logs and outputs the number of devices used by each user\n\t\terestart) Restarts the v2ray service for servers listed in ${FILE_SERVERS} (use 'this' for current running server)\n\tFlags)\n\t\t-i|--ip-address) IP address of the server to set in the QR code and the link given to the user. Default: ${FLAG_ADDRESS}\n\t\t-n|--vpn-name) A name to set in the QR code and the link given to the user. Default: ${FLAG_VPNNAME}\n\t\t-q|--qr-size) The size of the QR code outputted to the screen. Between 0-2. Set to 0 to detect the screen's size automatically. Default: ${FLAG_QRSIZE}\n\t\t-w|--wait) How long to wait for incoming requests to capture the IP addresses of users. Used in the check function. Example: 1m, 90s, 45, etc... .Default: ${FLAG_WAITTIME}\n\t\t-a|--all) Output every user even the ones who haven't exceeded the allowed number of devices. Used in the check function.\n\n"
+}
+
+beg_test() {
+    command -v v2ray || output ERROR "v2ray not found in your PATH"
+    command -v jq qrencode || output ERROR "This script depends on 'jq' and 'qrencode'. Please install them first."
+}
+
 main $@
-rm -f "$FILE_EXITERROR"
