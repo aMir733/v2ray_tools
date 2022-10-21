@@ -102,7 +102,7 @@ add_user() {
     cp "$FILE_CONFIG" "$FILE_NEWCONFIG"
     for user in ${args[@]} ; do
         [[ "$user" =~ ^[0-9]+@.+ ]] || output WARNING "Skipping $user: not valid"
-        grep -wF "${user#*@}" "$FILE_NEWCONFIG" && output ERROR "User $user exists"
+        grep -qwF "${user#*@}" "$FILE_NEWCONFIG" && output ERROR "User $user exists"
         uuid="$($PATH_V2RAY uuid)"
         jq -r '('"$QUERY_INBOUND"'.settings.clients) += [{"id":"'$uuid'","email":"'$user'","level":1,"alterId":0}]' "$FILE_NEWCONFIG" > "${FILE_NEWCONFIG}_temp"
         mv "${FILE_NEWCONFIG}_temp" "$FILE_NEWCONFIG"
@@ -215,8 +215,8 @@ print_usage() {
 }
 
 dep_check() {
-    command -v v2ray || output ERROR "v2ray not found in your PATH"
-    command -v jq qrencode || output ERROR "This script depends on 'jq' and 'qrencode'. Please install them first."
+    command -v v2ray >/dev/null || output ERROR "v2ray not found in your PATH"
+    command -v jq qrencode >/dev/null || output ERROR "This script depends on 'jq' and 'qrencode'. Please install them first."
 }
 
 main $@
