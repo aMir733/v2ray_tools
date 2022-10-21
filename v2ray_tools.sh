@@ -151,7 +151,7 @@ check() {
     dest="$DIR_SCRIPT/access.log_temp"
     [[ "$(jq -Mr '.log.access' "$FILE_CONFIG")" != "$DIR_LOG/access.log" ]] && \
         output ERROR "Your access log is not set to $DIR_LOG/access.log . Please make sure you create the $DIR_LOG directory first before changing it in your configuration file"
-    [[ -f "$FILE_SERVERS" ]] || \
+    [[ -e "$FILE_SERVERS" ]] || \
         { output WARNING "You did not create the servers file: $FILE_SERVERS. Creating one for you..." ; echo this > "$FILE_SERVERS" ;}
     
     :> $FILE_STRIKES
