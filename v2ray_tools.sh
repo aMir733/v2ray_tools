@@ -79,11 +79,10 @@ get_user() {
         c_net="$(jq -r "${QUERY_INBOUND}.streamSettings.network" "$FILE_CONFIG")"
         uuid="$(jq -r "$QUERY_INBOUND"'.settings.clients[] | select(.email=="'"$email"'").id' "$FILE_CONFIG")"
         [[ ${#uuid} == 0 ]] && output ERROR "No UUID was set for user $email"
-        final="vmess://$(base64 -w 0 <<< '{"add":"'$FLAG_ADDRESS'","aid":"0","host":"'$c_host'","id":"'$uuid'","net":"'$c_net'","path":"'$c_path'","port":"'$c_port'","ps":"'$FLAG_VPNNAME'","scy":"'$FLAG_SECURITY'","sni":"","tls":"","type":"","v":"2"}')"
-        echo -n "$final" | qrencode -o - -m "$FLAG_QRSIZE" -t utf8
-        echo "$final"
-        jq -r "$QUERY_INBOUND"'.settings.clients[] | select(.email=="'"$email"'")' "$FILE_CONFIG"
-        output INFO "Assigned IP address: $FLAG_ADDRESS"
+        final="$(base64 -w 0 <<< '{"add":"'$FLAG_ADDRESS'","aid":"0","host":"'$c_host'","id":"'$uuid'","net":"'$c_net'","path":"'$c_path'","port":"'$c_port'","ps":"'$FLAG_VPNNAME'","scy":"'$FLAG_SECURITY'","sni":"","tls":"","type":"","v":"2"}')"
+        echo -n "vmess://${final}" | qrencode -o - -m "$FLAG_QRSIZE" -t utf8
+        echo "vmess://${final}"
+        echo -n "$final" | base64 -d | jq -c
     done
 }
 
