@@ -10,8 +10,15 @@ FILE_STRIKES="$DIR_SCRIPT/strikes"
 FILE_USAGE="$DIR_SCRIPT/usage"
 FILE_SERVERS="$DIR_SCRIPT/servers"
 FILE_EXITERROR="/tmp/v2ray_tools_error"
+# --- DEFAULT FLAGS ---
+FLAG_ADDRESS=1.1.1.1
+FLAG_SECURITY=none
+FLAG_NAME="$(basename -- "$FILE_CONFIG" | sed 's/\.[^.]*$//')"
+FLAG_QRSIZE=0
+FLAG_WAITTIME=90s
+FLAG_ALLUSERS=0
+# --- DEFAULT FLAGS ---
 NAME_SERVICE="v2ray@$(basename -- "$FILE_CONFIG" | sed 's/\.[^.]*$//')"
-NAME_VPN=
 LIST_SERVERS="$DIR_SCRIPT/servers"
 PATH_V2RAY=v2ray
 QUERY_INBOUND='if .inbounds == null then .inbound else .inbounds[] end | select(.protocol=="vmess" or .protocol=="vless")'
@@ -35,11 +42,11 @@ parse_args () {
     while [[ "$#" -gt 0 ]]; do
         if [[ "$1" =~ ^- ]] ; then
             case "$1" in
-                -i|--ip-address) [[ "$2" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] && addr="$2" || output ERROR "Not an IP address: $2" ; shift ;;
-                -n|--vpn-name) vpn_name="$2" ; shift ;;
-                -q|--qr-size) [[ "$2" =~ ^[1-2]$ ]] && qr_size="$2" || output ERROR "$1 $2 is not valid. $1 should be set to either 1 or 2" ; shift ;;
-                -w|--wait) [[ "$2" =~ ^[0-9]+[sm]?$ ]] && wait_time=$2 || output ERROR "$1 $2 is not valied. $1 should be set to an integer (optionally followed by either m or s)" ; shift ;;
-                -a|--all) all=1 ;;
+                -i|--ip-address) [[ "$2" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] && FLAG_ADDRESS="$2" || output ERROR "Not an IP address: $2" ; shift ;;
+                -n|--vpn-name) FLAG_VPNNAME="$2" ; shift ;;
+                -q|--qr-size) [[ "$2" =~ ^[0-2]$ ]] && FLAG_QRSIZE="$2" || output ERROR "$1 $2 is not valid. $1 should be between 0-2." ; shift ;;
+                -w|--wait) [[ "$2" =~ ^[0-9]+[sm]?$ ]] && FLAG_WAITTIME="$2" || output ERROR "$1 $2 is not valied. $1 should be set to an integer (optionally followed by either m or s)" ; shift ;;
+                -a|--all) FLAG_ALLUSERS=1 ;;
                 *) output WARNING "Unknown parameter passed: $1" ;;
             esac
         else
@@ -61,10 +68,7 @@ output() {
 # Usage: ... -s [IP address] -n [VPN Name on client's phone/computer]
 get_user() {
     parse_args $@
-    [[ ${#vpn_name} == 0 ]] && vpn_name="$NAME_VPN"
-    [[ ${#vpn_name} == 0 ]] && { output WARNING "No VPN Name was set. Using the default name (server)" ; vpn_name=server ;}
-    [[ ${#addr} == 0 ]] && output ERROR "No IP address was set."
-    [[ ${#qr_size} == 0 ]] && { [[ $(tput cols) -lt 65 ]] && qr_size=1 || qr_size=2 ;}
+    [[ "${FLAG_QRSIZE}" == 0 ]] && { [[ $(tput cols) -lt 65 ]] && FLAG_QRSIZE=1 || FLAG_QRSIZE=2 ;}
     for user in ${args[@]} ; do
         email="$(jq -r "$QUERY_INBOUND"'.settings.clients[] | select(.email | test("'"$user"'")).email' "$FILE_CONFIG")"
         [[ $(echo -n "$email" | grep -c "^") != 1 ]] && output ERROR "No user was found. Or multiple users were found."
@@ -75,11 +79,11 @@ get_user() {
         c_net="$(jq -r "${QUERY_INBOUND}.streamSettings.network" "$FILE_CONFIG")"
         uuid="$(jq -r "$QUERY_INBOUND"'.settings.clients[] | select(.email=="'"$email"'").id' "$FILE_CONFIG")"
         [[ ${#uuid} == 0 ]] && output ERROR "No UUID was set for user $email"
-        final="vmess://$(base64 -w 0 <<< '{"add":"'$addr'","aid":"0","host":"'$c_host'","id":"'$uuid'","net":"'$c_net'","path":"'$c_path'","port":"'$c_port'","ps":"'$vpn_name'","scy":"none","sni":"","tls":"","type":"","v":"2"}')"
-        qrencode -m "$qr_size" -t utf8 <<< "$final"
+        final="vmess://$(base64 -w 0 <<< '{"add":"'$FLAG_ADDRESS'","aid":"0","host":"'$c_host'","id":"'$uuid'","net":"'$c_net'","path":"'$c_path'","port":"'$c_port'","ps":"'$FLAG_VPNNAME'","scy":"'$FLAG_SECURITY'","sni":"","tls":"","type":"","v":"2"}')"
+        echo -n "$final" | qrencode -o - -m "$FLAG_QRSIZE" -t utf8
         echo "$final"
         jq -r "$QUERY_INBOUND"'.settings.clients[] | select(.email=="'"$email"'")' "$FILE_CONFIG"
-        output INFO "Assigned IP address: $addr"
+        output INFO "Assigned IP address: $FLAG_ADDRESS"
     done
 }
 
@@ -132,7 +136,6 @@ check() {
     # Use lsyncd if you have several servers and want to gather all the logs into this current running server
     parse_args $@
     dest="$DIR_SCRIPT/access.log_temp"
-    [[ ${#wait_time} == 0 ]] && wait_time=90
     [[ "$(jq -Mr '.log.access' "$FILE_CONFIG")" != "$DIR_LOG/access.log" ]] && \
         output ERROR "Your access log is not set to $DIR_LOG/access.log . Please make sure you create the $DIR_LOG directory first before changing it in your configuration file"
     [[ -f "$FILE_SERVERS" ]] || \
@@ -147,9 +150,9 @@ check() {
                     fi
                     ssh root@$server "echo -n '' > $DIR_LOG/access.log"
             done
-            i=0 ; while [ $i -lt $wait_time ] ; do
+            i=0 ; while [ $i -lt $FLAG_WAITTIME ] ; do
                     sleep 1
-                    echo -ne "${i}/${wait_time}\r"
+                    echo -ne "${i}/${FLAG_WAITTIME}\r"
                     i=$(($i+1))
             done
             cat "$FILE_SERVERS" | while read server ; do
@@ -171,7 +174,7 @@ check() {
                     fi
                     cur_all=$(($cur_conn + $cur_all)) ; max_all=$(($max_conn + $max_all))
                     final="${email#*@} ${cur_conn}/${max_conn}"
-                    [[ $all == 1 ]] && echo "$final"
+                    [[ "$FLAG_ALLUSERS" == 1 ]] && echo "$final"
                     [[ $cur_conn > $max_conn ]] && echo "$final" | tee -a "$FILE_USAGE" | tee -a "$FILE_STRIKES" 
             done
             echo "Total: $cur_all/$max_all" | tee -a "$FILE_USAGE"
