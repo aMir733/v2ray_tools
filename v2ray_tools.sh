@@ -26,6 +26,7 @@ QUERY_INBOUND='if .inbounds == null then .inbound else .inbounds[] end | select(
 
 main () {
     [[ $# -eq 0 ]] && output HELP "Nothing to do!"
+    dep_check
     if [[ "$1" =~ ^- ]] ; then
         output HELP "Unknown parameter: $1"
     else
@@ -211,7 +212,7 @@ print_usage() {
     printf "%b" "Usage: ${0} [command] [-inqwa]\n\tcommand)\n\t\tadd) Add new users\n\t\tdel) Invalidate users UUID\n\t\tget) Get user's QR code and link\n\t\tapply) Applies the configuration located at ${FILE_NEWCONFIG} to ${FILE_CONFIG}\n\t\tcheck) Checks the logs and outputs the number of devices used by each user\n\t\terestart) Restarts the v2ray service for servers listed in ${FILE_SERVERS} (use 'this' for current running server)\n\tFlags)\n\t\t-i|--ip-address) IP address of the server to set in the QR code and the link given to the user. Default: ${FLAG_ADDRESS}\n\t\t-n|--vpn-name) A name to set in the QR code and the link given to the user. Default: ${FLAG_VPNNAME}\n\t\t-q|--qr-size) The size of the QR code outputted to the screen. Between 0-2. Set to 0 to detect the screen's size automatically. Default: ${FLAG_QRSIZE}\n\t\t-w|--wait) How long to wait for incoming requests to capture the IP addresses of users. Used in the check function. Example: 1m, 90s, 45, etc... .Default: ${FLAG_WAITTIME}\n\t\t-a|--all) Output every user even the ones who haven't exceeded the allowed number of devices. Used in the check function.\n\n"
 }
 
-beg_test() {
+dep_check() {
     command -v v2ray || output ERROR "v2ray not found in your PATH"
     command -v jq qrencode || output ERROR "This script depends on 'jq' and 'qrencode'. Please install them first."
 }
