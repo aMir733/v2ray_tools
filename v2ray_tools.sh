@@ -134,8 +134,10 @@ apply() {
     [[ -f "$FILE_EXITERROR" ]] && { rm -f "$FILE_EXITERROR"; output ASK "Last run was not successful. Are you sure you want to continue?" ;}
     cp "$FILE_CONFIG" "$FILE_OLDCONFIG"
     cp "$FILE_NEWCONFIG" "$FILE_CONFIG"
-    cat "${FILE_DELETED}_pending" >> "$FILE_DELETED"
-    :> "${FILE_DELETED}_pending"
+    if [[ -f "${FILE_DELETED}_pending" ]] ; then
+        cat "${FILE_DELETED}_pending" >> "$FILE_DELETED"
+        :> "${FILE_DELETED}_pending"
+    fi
 }
 
 # Used to log the number of devices used by each email.
