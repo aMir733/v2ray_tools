@@ -8,18 +8,17 @@ FILE_OLDCONFIG="$DIR_SCRIPT/$(basename -- "$FILE_CONFIG")_old"
 FILE_DELETED="$DIR_SCRIPT/deleted"
 FILE_STRIKES="$DIR_SCRIPT/strikes"
 FILE_USAGE="$DIR_SCRIPT/usage"
-FILE_SERVERS="$DIR_SCRIPT/servers"
 FILE_EXITERROR="/tmp/v2ray_tools_error"
 # --- DEFAULT FLAGS ---
 FLAG_ADDRESS=1.1.1.1
-FLAG_SECURITY=none
 FLAG_NAME="$(basename -- "$FILE_CONFIG" | sed 's/\.[^.]*$//')"
+FLAG_SECURITY=none
 FLAG_QRSIZE=0
-FLAG_WAITTIME=90s
+FLAG_WAITTIME=90
 FLAG_ALLUSERS=0
 # --- DEFAULT FLAGS ---
 NAME_SERVICE="v2ray@$(basename -- "$FILE_CONFIG" | sed 's/\.[^.]*$//')"
-LIST_SERVERS="$DIR_SCRIPT/servers"
+LIST_SERVERS=(this)
 PATH_V2RAY=v2ray
 QUERY_INBOUND='if .inbounds == null then .inbound else .inbounds[] end | select(.protocol=="vmess" or .protocol=="vless")'
 
@@ -50,7 +49,7 @@ parse_args () {
                 -i|--ip-address) [[ "$2" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] && FLAG_ADDRESS="$2" || output ERROR "Not an IP address: $2" ; shift ;;
                 -n|--vpn-name) FLAG_VPNNAME="$2" ; shift ;;
                 -q|--qr-size) [[ "$2" =~ ^[0-2]$ ]] && FLAG_QRSIZE="$2" || output HELP "$1 $2 is not valid. $1 should be between 0-2." ; shift ;;
-                -w|--wait) [[ "$2" =~ ^[0-9]+[sm]?$ ]] && FLAG_WAITTIME="$2" || output HELP "$1 $2 is not valied. $1 should be set to an integer (optionally followed by either m or s)" ; shift ;;
+                -w|--wait) [[ "$2" =~ ^[0-9]+$ ]] && FLAG_WAITTIME="$2" || output HELP "$1 $2 is not valied. $1 should be set to an integer" ; shift ;;
                 -a|--all) FLAG_ALLUSERS=1 ;;
                 *) output HELP "Unknown parameter passed: $1" ;;
             esac
@@ -78,7 +77,7 @@ get_user() {
     [[ "${FLAG_QRSIZE}" == 0 ]] && { [[ $(tput cols) -lt 65 ]] && FLAG_QRSIZE=1 || FLAG_QRSIZE=2 ;}
     for user in ${args[@]} ; do
         email="$(jq -r "$QUERY_INBOUND"'.settings.clients[] | select(.email | test("'"$user"'")).email' "$FILE_CONFIG")"
-        [[ $(echo -n "$email" | grep -c "^") != 1 ]] && output ERROR "No user was found. Or multiple users were found."
+        [[ $(echo -n "$email" | grep -c "^") != 1 ]] && { output INFO "Skipping $user: No user was found or multiple users were found." ; continue ;}
         for i in $email ; do output INFO "Found $email" ; done
         c_port="$(jq -r "${QUERY_INBOUND}.port" "$FILE_CONFIG")"
         c_host="$(jq -r "${QUERY_INBOUND}.streamSettings.headers.Host" "$FILE_CONFIG")"
@@ -102,7 +101,7 @@ add_user() {
     cp "$FILE_CONFIG" "$FILE_NEWCONFIG"
     for user in ${args[@]} ; do
         [[ "$user" =~ ^[0-9]+@.+ ]] || output WARNING "Skipping $user: not valid"
-        grep -qwF "${user#*@}" "$FILE_NEWCONFIG" && output ERROR "User $user exists"
+        grep -qwF "${user#*@}" "$FILE_NEWCONFIG" && { output INFO "Skipping user $user: User exists" ; continue ;}
         uuid="$($PATH_V2RAY uuid)"
         jq -r '('"$QUERY_INBOUND"'.settings.clients) += [{"id":"'$uuid'","email":"'$user'","level":1,"alterId":0}]' "$FILE_NEWCONFIG" > "${FILE_NEWCONFIG}_temp"
         mv "${FILE_NEWCONFIG}_temp" "$FILE_NEWCONFIG"
@@ -117,7 +116,7 @@ del_user() {
     cp "$FILE_CONFIG" "$FILE_NEWCONFIG"
     for user in ${args[@]} ; do
         email="$(jq -r "$QUERY_INBOUND"'.settings.clients[] | select(.email | test("'"$user"'")).email' "$FILE_NEWCONFIG")"
-        [[ $(echo -n "$email" | grep -c "^") != 1 ]] && output ERROR "No user was found. Or multiple users were found."
+        [[ $(echo -n "$email" | grep -c "^") != 1 ]] && { output INFO "Skipping $user: No user was found or multiple users were found." ; continue ;}
         for i in $email ; do output INFO "Found $email" ; done
         user_jq="$QUERY_INBOUND"'.settings.clients[] | select(.email=="'$email'")'
         uuid_old="$(jq -r "${user_jq}.id" "$FILE_NEWCONFIG")"
@@ -151,12 +150,10 @@ check() {
     dest="$DIR_SCRIPT/access.log_temp"
     [[ "$(jq -Mr '.log.access' "$FILE_CONFIG")" != "$DIR_LOG/access.log" ]] && \
         output ERROR "Your access log is not set to $DIR_LOG/access.log . Please make sure you create the $DIR_LOG directory first before changing it in your configuration file"
-    [[ -e "$FILE_SERVERS" ]] || \
-        { output WARNING "You did not create the servers file: $FILE_SERVERS. Creating one for you..." ; echo this > "$FILE_SERVERS" ;}
     
     :> $FILE_STRIKES
     while true ; do
-            cat "$FILE_SERVERS" | while read server ; do
+            for server in ${LIST_SERVERS[@]} ; do
                     if [[ $server == this ]] ; then
                             :> $DIR_LOG/access.log
                             continue
@@ -168,7 +165,7 @@ check() {
                     echo -ne "${i}/${FLAG_WAITTIME}\r"
                     i=$(($i+1))
             done
-            cat "$FILE_SERVERS" | while read server ; do
+            for server in ${LIST_SERVERS[@]} ; do
                     if [[ $server == this ]] ; then
                             cat $DIR_LOG/access.log >> $dest
                             continue
@@ -182,7 +179,7 @@ check() {
                     cur_conn="$(grep -wF "email: $email" "$dest" | cut -d' ' -f3 | cut -d':' -f1 | sort | uniq | wc -l)"
                     max_conn="${email%@*}"
                     if ! [[ "$max_conn" =~ ^[0-9]+$ ]] ; then
-                            echo "${email} ${cur_conn}" | tee -a "$file_usage"
+                            echo "${email} ${cur_conn}" | tee -a "$FILE_USAGE"
                             continue
                     fi
                     cur_all=$(($cur_conn + $cur_all)) ; max_all=$(($max_conn + $max_all))
@@ -198,7 +195,7 @@ check() {
 
 # Restarts v2ray's service on all servers in servers file
 restart_v2ray() {
-    cat "$FILE_SERVERS" | while read server ; do
+    for server in ${LIST_SERVERS[@]} ; do
             output INFO "Restarting $NAME_SERVICE on $server server"
             [[ $server == this ]] && { systemctl restart $NAME_SERVICE ; continue ;}
             ssh root@$server systemctl restart $NAME_SERVICE || { output WARNING "Skipping $server: failed to restart" ;}
@@ -211,7 +208,7 @@ check_unapplied() {
 }
 
 print_usage() {
-    printf "%b" "Usage: ${0} [command] [-inqwa]\n\tcommand)\n\t\tadd) Add new users\n\t\tdel) Invalidate users UUID\n\t\tget) Get user's QR code and link\n\t\tapply) Applies the configuration located at ${FILE_NEWCONFIG} to ${FILE_CONFIG}\n\t\tcheck) Checks the logs and outputs the number of devices used by each user\n\t\terestart) Restarts the v2ray service for servers listed in ${FILE_SERVERS} (use 'this' for current running server)\n\tFlags)\n\t\t-i|--ip-address) IP address of the server to set in the QR code and the link given to the user. Default: ${FLAG_ADDRESS}\n\t\t-n|--vpn-name) A name to set in the QR code and the link given to the user. Default: ${FLAG_VPNNAME}\n\t\t-q|--qr-size) The size of the QR code outputted to the screen. Between 0-2. Set to 0 to detect the screen's size automatically. Default: ${FLAG_QRSIZE}\n\t\t-w|--wait) How long to wait for incoming requests to capture the IP addresses of users. Used in the check function. Example: 1m, 90s, 45, etc... .Default: ${FLAG_WAITTIME}\n\t\t-a|--all) Output every user even the ones who haven't exceeded the allowed number of devices. Used in the check function.\n\n"
+    printf "%b" "Usage: ${0} [command] [-inqwa]\n\tcommand)\n\t\tadd) Add new users\n\t\tdel) Invalidate users UUID\n\t\tget) Get user's QR code and link\n\t\tapply) Applies the configuration located at ${FILE_NEWCONFIG} to ${FILE_CONFIG}\n\t\tcheck) Checks the logs and outputs the number of devices used by each user\n\t\terestart) Restarts the v2ray service for servers listed in ${FILE_SERVERS} (use 'this' for current running server)\n\tFlags)\n\t\t-i|--ip-address) IP address of the server to set in the QR code and the link given to the user. Default: ${FLAG_ADDRESS}\n\t\t-n|--vpn-name) A name to set in the QR code and the link given to the user. Default: ${FLAG_VPNNAME}\n\t\t-q|--qr-size) The size of the QR code outputted to the screen. Between 0-2. Set to 0 to detect the screen's size automatically. Default: ${FLAG_QRSIZE}\n\t\t-w|--wait) How long to wait for incoming requests to capture the IP addresses of users (in seconds). Used in the check function. Default: ${FLAG_WAITTIME}\n\t\t-a|--all) Output every user even the ones who haven't exceeded the allowed number of devices. Used in the check function.\n\n"
 }
 
 dep_check() {
