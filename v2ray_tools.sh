@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-DIR_SCRIPT="$(dirname -- $0)"
+DIR_SCRIPT="/root/v2ray_tools"
 DIR_LOG="/var/log/v2ray"
 FILE_CONFIG=/etc/v2ray/config.json
 FILE_NEWCONFIG="$DIR_SCRIPT/$(basename -- "$FILE_CONFIG")_new"
@@ -24,6 +24,8 @@ QUERY_INBOUND='if .inbounds == null then .inbound else .inbounds[] end | select(
 
 
 main () {
+    [[ -f "$DIR_SCRIPT" ]] && output ERROR "Invalid directory: $DIR_SCRIPT"
+    [[ -d "$DIR_SCRIPT" ]] || output INFO "Creating directory: $DIR_SCRIPT"
     [[ $# -eq 0 ]] && output HELP "Nothing to do!"
     dep_check
     if [[ "$1" =~ ^- ]] ; then
@@ -47,7 +49,7 @@ parse_args () {
         if [[ "$1" =~ ^- ]] ; then
             case "$1" in
                 -i|--ip-address) [[ "$2" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] && FLAG_ADDRESS="$2" || output ERROR "Not an IP address: $2" ; shift ;;
-                -n|--vpn-name) FLAG_VPNNAME="$2" ; shift ;;
+                -n|--vpn-name) FLAG_NAME="$2" ; shift ;;
                 -q|--qr-size) [[ "$2" =~ ^[0-2]$ ]] && FLAG_QRSIZE="$2" || output HELP "$1 $2 is not valid. $1 should be between 0-2." ; shift ;;
                 -w|--wait) [[ "$2" =~ ^[0-9]+$ ]] && FLAG_WAITTIME="$2" || output HELP "$1 $2 is not valied. $1 should be set to an integer" ; shift ;;
                 -a|--all) FLAG_ALLUSERS=1 ;;
@@ -86,7 +88,7 @@ get_user() {
         uuid="$(jq -r "$QUERY_INBOUND"'.settings.clients[] | select(.email=="'"$email"'").id' "$FILE_CONFIG")"
         [[ ${#uuid} == 0 ]] && output ERROR "No UUID was set for user $email"
         # TODO: Output vless link if protocol is set to vless
-        final="$(base64 -w 0 <<< '{"add":"'$FLAG_ADDRESS'","aid":"0","host":"'$c_host'","id":"'$uuid'","net":"'$c_net'","path":"'$c_path'","port":"'$c_port'","ps":"'$FLAG_VPNNAME'","scy":"'$FLAG_SECURITY'","sni":"","tls":"","type":"","v":"2"}')"
+        final="$(base64 -w 0 <<< '{"add":"'$FLAG_ADDRESS'","aid":"0","host":"'$c_host'","id":"'$uuid'","net":"'$c_net'","path":"'$c_path'","port":"'$c_port'","ps":"'$FLAG_NAME'","scy":"'$FLAG_SECURITY'","sni":"","tls":"","type":"","v":"2"}')"
         echo -n "vmess://${final}" | qrencode -o - -m "$FLAG_QRSIZE" -t utf8
         echo "vmess://${final}"
         echo -n "$final" | base64 -d | jq -c
@@ -208,7 +210,7 @@ check_unapplied() {
 }
 
 print_usage() {
-    printf "%b" "Usage: ${0} [command] [-inqwa]\n\tcommand)\n\t\tadd) Add new users\n\t\tdel) Invalidate users UUID\n\t\tget) Get user's QR code and link\n\t\tapply) Applies the configuration located at ${FILE_NEWCONFIG} to ${FILE_CONFIG}\n\t\tcheck) Checks the logs and outputs the number of devices used by each user\n\t\terestart) Restarts the v2ray service for servers listed in ${FILE_SERVERS} (use 'this' for current running server)\n\tFlags)\n\t\t-i|--ip-address) IP address of the server to set in the QR code and the link given to the user. Default: ${FLAG_ADDRESS}\n\t\t-n|--vpn-name) A name to set in the QR code and the link given to the user. Default: ${FLAG_VPNNAME}\n\t\t-q|--qr-size) The size of the QR code outputted to the screen. Between 0-2. Set to 0 to detect the screen's size automatically. Default: ${FLAG_QRSIZE}\n\t\t-w|--wait) How long to wait for incoming requests to capture the IP addresses of users (in seconds). Used in the check function. Default: ${FLAG_WAITTIME}\n\t\t-a|--all) Output every user even the ones who haven't exceeded the allowed number of devices. Used in the check function.\n\n"
+    printf "%b" "Usage: ${0} [command] [-inqwa]\n\tcommand)\n\t\tadd) Add new users\n\t\tdel) Invalidate users UUID\n\t\tget) Get user's QR code and link\n\t\tapply) Applies the configuration located at ${FILE_NEWCONFIG} to ${FILE_CONFIG}\n\t\tcheck) Checks the logs and outputs the number of devices used by each user\n\t\terestart) Restarts the v2ray service for servers listed in ${FILE_SERVERS} (use 'this' for current running server)\n\tFlags)\n\t\t-i|--ip-address) IP address of the server to set in the QR code and the link given to the user. Default: ${FLAG_ADDRESS}\n\t\t-n|--vpn-name) A name to set in the QR code and the link given to the user. Default: ${FLAG_NAME}\n\t\t-q|--qr-size) The size of the QR code outputted to the screen. Between 0-2. Set to 0 to detect the screen's size automatically. Default: ${FLAG_QRSIZE}\n\t\t-w|--wait) How long to wait for incoming requests to capture the IP addresses of users (in seconds). Used in the check function. Default: ${FLAG_WAITTIME}\n\t\t-a|--all) Output every user even the ones who haven't exceeded the allowed number of devices. Used in the check function.\n\n"
 }
 
 dep_check() {
