@@ -1,32 +1,126 @@
 #!/usr/bin/env python3
 
-from json import loads as jsonloads, dumps as jsondumps
+from json import loads as jsonloads, dumps as jsondumps, load as jsonload, dump as jsondump
 from re import search
-from argparse import ArgumentParser
+from argparse import ArgumentParser as argparse
 from base64 import b64encode
 
 default_config = "/usr/local/etc/v2ray/config.json"
 default_addr = "1.1.1.1"
-default_name = "v2ray"
+default_name = "hello_freedom"
+default_size = "auto"
+default_del = False
+default_service = "v2ray"
+default_wait = 90
 
 def _output(level, message):
     if level == 0: # Error
-        pass
+        parser.print_help()
+        print("Error:\n\t")
+        print(message)
+        exit(1)
     elif level == 1: # Warning
-        pass
+        print("[Warning]: " + message)
     elif level == 2: # Info
-        pass
+        print("[Info]: " + message)
+
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Manage your v2ray config file and its users')
-    subparsers = parser.add_subparsers('action', help='What to do')
-    parser.add_argument('-i', '--ip-address', type=str, default=default_addr, help='IP address for client\'s config file')
-    parser.add_arguemnt('-n', '--name', type=str, default=default_name, help='Name/remark for clients\'s config file')
-    parser.add_argument('-c', '--config', type=str, default=default_config, help='v2ray\'s configuration file')
+    global parser
+    parser = argparse(description='Manage your v2ray config file and its users')
+    subparser = parser.add_subparsers(help='Action to take', required=True)
+    parser_add = subparser.add_parser('add', help='Add a new user')
+    parser_get = subparser.add_parser('get', help='Get user\'s client information')
+    parser_inv = subparser.add_parser('invalidate', help='Invalidate a user\'s UUID')
+    parser_res = subparser.add_parser('restart', help='Restart the servers')
+    parser_chk = subparser.add_parser('check', help='Run user checks')
+
+    # global arguments
+    parser.add_argument('-c', '--config', type=str, default=default_config, help='v2ray\'s configuration file. Default: ' + default_config)
+    # add arguments
+    parser_add.add_argument('users', nargs='+', help='List of users emails to register')
+    # get arguments
+    parser_get.add_argument('user', type=str, help='User\'s email or UUID')
+    parser_get.add_argument('-i', '--ip-address', type=str, default=default_addr, help='IP address for client\'s config file. Default: ' + default_addr)
+    parser_get.add_argument('-n', '--name', type=str, default=default_name, help='Name/remark for clients\'s config file. Default: ' + default_name)
+    parser_get.add_argument('-q', '--qr-size', type=str, default=default_size, help='Size of the QR code outputted to the screen. Default: ' + default_size)
+    # inv arguments
+    parser_inv.add_argument('user', type=str, help='User\'s email or UUID')
+    parser_inv.add_argument('-d', '--delete-user', action='store_true', default=default_del, help='Deletes the user entirely instead of just invalidating their UUID. Default: ' + str(default_addr))
+    # res arguments
+    parser_res.add_argument('servers', nargs='+', help='List of servers to restart.')
+    parser_res.add_argument('-s', '--service-name', type=str, default=default_service, help='Name of the systemd service on the servers. Default: ' + default_service)
+    # chk arguments
+    parser_chk.add_argument('-w', '--wait-time', type=int, default=default_wait, help='How long to wait for incoming requests between each run (in seconds). Default: ' + str(default_wait))
+    parser_chk.add_argument('-a', '--show-all', action='store_true', default=False, help='Whether to output every user or not. Default: ' + str(False))
+
+    parser_add.set_defaults(func=action_add)
+    parser_get.set_defaults(func=action_get)
+    parser_inv.set_defaults(func=action_inv)
+    parser_res.set_defaults(func=action_res)
+    parser_chk.set_defaults(func=action_chk)
+    args = parser.parse_args()
+    args.__dict__.pop('func')(**vars(args))
+
+
+def find_inbound(js): # Finds the required inbound for the script to work
+    if 'inbound' in js:
+        if js['inbound']['settings']['clients'][0]['email'].startswith("admin@"):
+            return ('inbound', 'settings', 'clients')
+    elif 'inbounds' in js:
+        i = 0
+        for inbound in js['inbounds']:
+            i = i + 1
+            if inbound['protocol'] != 'vless' and inbound['protocol'] != 'vmess':
+                continue
+            if not inbound['settings']['clients'][0]['email'].startswith("admin@"):
+                continue
+            return ('inbounds', i-1, 'settings', 'clients')
+    else:
+        _output(0, "No inbound in configuration file")
+    _output(0, """Invalid configuration file. 
+    Your inbound/inbounds need to have either vmess or vless also
+    your first user should have the admin@v2ray_tools email.
+    Example: -> inbound/inbounds -> vmess/vless -> settings -> clients -> [0] -> email == admin@whatever""")
+    
+def get_inbound(config, path):
+    with open(config, 'r') as config:
+        js = jsonload(config)
+    for path in find_inbound(js):
+        js = js[path]
+    return js
+
+def write_inbound(config, path, inbound):
+    with open(config, 'rw') as config:
+        js = jsonload(config)
+        for path in find_inbound(js):
+
+def action_add(config=None, # Path to v2ray's configuration file
+                users=None): # List of emails
+
+
+def action_get(config=None, # Path to v2ray's configuration file
+                user=None, # email or UUID
+                ip_address=None, # IP address
+                name=None, # VPN name
+                qr_size=None): # QR code size: auto|normal|small
+    print(kwargs)
+    pass
+
+def action_inv(config=None, user=None):
+    pass
+
+def action_res():
+    pass
+
+def action_chk():
+    pass
 
 def main():
     parse_args()
 
+if __name__ == '__main__':
+    main()
 
 #DIR_SCRIPT="/root/v2ray_tools"
 #DIR_LOG="/var/log/v2ray"
