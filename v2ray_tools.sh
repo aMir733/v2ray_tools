@@ -155,43 +155,43 @@ check() {
     
     :> $FILE_STRIKES
     while true ; do
-            for server in ${LIST_SERVERS[@]} ; do
-                    if [[ $server == this ]] ; then
-                            :> $DIR_LOG/access.log
-                            continue
-                    fi
-                    ssh root@$server ":> $DIR_LOG/access.log"
-            done
-            i=0 ; while [ $i -lt $FLAG_WAITTIME ] ; do
-                    sleep 1
-                    echo -ne "${i}/${FLAG_WAITTIME}\r"
-                    i=$(($i+1))
-            done
-            for server in ${LIST_SERVERS[@]} ; do
-                    if [[ $server == this ]] ; then
-                            cat $DIR_LOG/access.log >> $dest
-                            continue
-                    fi
-                    ssh root@$server "cat $LOG_DIR/access.log" >> $dest
-            done
-            cur_all=0
-            max_all=0
-            echo "----> $(date +%y%m%d_%H%M%S):" | tee -a "$FILE_USAGE"
-            for email in $(jq -r "$QUERY_INBOUND"'.settings.clients[] | .email' "$FILE_CONFIG") ; do
-                    cur_conn="$(grep -wF "email: $email" "$dest" | cut -d' ' -f3 | cut -d':' -f1 | sort | uniq | wc -l)"
-                    max_conn="${email%@*}"
-                    if ! [[ "$max_conn" =~ ^[0-9]+$ ]] ; then
-                            echo "${email} ${cur_conn}" | tee -a "$FILE_USAGE"
-                            continue
-                    fi
-                    cur_all=$(($cur_conn + $cur_all)) ; max_all=$(($max_conn + $max_all))
-                    final="${email#*@} ${cur_conn}/${max_conn}"
-                    [[ "$FLAG_ALLUSERS" == 1 ]] && echo "$final"
-                    [[ $cur_conn > $max_conn ]] && echo "$final" | tee -a "$FILE_USAGE" | tee -a "$FILE_STRIKES" 
-            done
-            echo "Total: $cur_all/$max_all" | tee -a "$FILE_USAGE"
-            echo "<----" | tee -a "$FILE_USAGE"
-            :> "$dest"
+        :> $dest
+        for server in ${LIST_SERVERS[@]} ; do
+                if [[ $server == this ]] ; then
+                        :> $DIR_LOG/access.log
+                        continue
+                fi
+                ssh root@$server ":> $DIR_LOG/access.log"
+        done
+        i=0 ; while [ $i -lt $FLAG_WAITTIME ] ; do
+                sleep 1
+                echo -ne "${i}/${FLAG_WAITTIME}\r"
+                i=$(($i+1))
+        done
+        for server in ${LIST_SERVERS[@]} ; do
+                if [[ $server == this ]] ; then
+                        cat $DIR_LOG/access.log >> $dest
+                        continue
+                fi
+                ssh root@$server "cat $LOG_DIR/access.log" >> $dest
+        done
+        cur_all=0
+        max_all=0
+        echo "----> $(date +%y%m%d_%H%M%S):" | tee -a "$FILE_USAGE"
+        for email in $(jq -r "$QUERY_INBOUND"'.settings.clients[] | .email' "$FILE_CONFIG") ; do
+                cur_conn="$(grep -wF "email: $email" "$dest" | cut -d' ' -f3 | cut -d':' -f1 | sort | uniq | wc -l)"
+                max_conn="${email%@*}"
+                if ! [[ "$max_conn" =~ ^[0-9]+$ ]] ; then
+                        echo "${email} ${cur_conn}" | tee -a "$FILE_USAGE"
+                        continue
+                fi
+                cur_all=$(($cur_conn + $cur_all)) ; max_all=$(($max_conn + $max_all))
+                final="${email#*@} ${cur_conn}/${max_conn}"
+                [[ "$FLAG_ALLUSERS" == 1 ]] && echo "$final"
+                [[ $cur_conn > $max_conn ]] && echo "$final" | tee -a "$FILE_USAGE" | tee -a "$FILE_STRIKES" 
+        done
+        echo "Total: $cur_all/$max_all" | tee -a "$FILE_USAGE"
+        echo "<----" | tee -a "$FILE_USAGE"
     done
 }
 
