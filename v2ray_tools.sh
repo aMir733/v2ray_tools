@@ -14,7 +14,7 @@ FLAG_ADDRESS=1.1.1.1
 FLAG_NAME="$(basename -- "$FILE_CONFIG" | sed 's/\.[^.]*$//')"
 FLAG_SECURITY=none
 FLAG_QRSIZE=0
-FLAG_WAITTIME=90
+FLAG_WAITTIME=60
 FLAG_ALLUSERS=0
 # --- DEFAULT FLAGS ---
 NAME_SERVICE="v2ray@$(basename -- "$FILE_CONFIG" | sed 's/\.[^.]*$//')"
@@ -160,7 +160,7 @@ check() {
                             :> $DIR_LOG/access.log
                             continue
                     fi
-                    ssh root@$server "echo -n '' > $DIR_LOG/access.log"
+                    ssh root@$server ":> $DIR_LOG/access.log"
             done
             i=0 ; while [ $i -lt $FLAG_WAITTIME ] ; do
                     sleep 1
@@ -172,7 +172,7 @@ check() {
                             cat $DIR_LOG/access.log >> $dest
                             continue
                     fi
-                    cat $DIR_LOG/srv${server##*.}/access.log >> $dest
+                    ssh root@$server "cat $LOG_DIR/access.log" >> $dest
             done
             cur_all=0
             max_all=0
