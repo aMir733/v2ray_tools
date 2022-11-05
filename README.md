@@ -57,7 +57,8 @@ root@server:~/v2ray_tools# ./v2ray_tools.sh check
             "email": "1@joe",
             "alterId": 0
           }
-        ],
+        ]
+      },
       "streamSettings": {
         "network": "ws",
         "path": "/",
@@ -65,7 +66,6 @@ root@server:~/v2ray_tools# ./v2ray_tools.sh check
           "Host": "aparat.com"
         }
       }
-    }
     }
   ],
   "outbound": {
