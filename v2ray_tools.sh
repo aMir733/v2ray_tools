@@ -173,13 +173,13 @@ check() {
                         cat $DIR_LOG/access.log >> $dest
                         continue
                 fi
-                ssh root@$server "cat $LOG_DIR/access.log" >> $dest
+                ssh root@$server "cat $DIR_LOG/access.log" >> $dest
         done
         cur_all=0
         max_all=0
         echo "----> $(date +%y%m%d_%H%M%S):" | tee -a "$FILE_USAGE"
         for email in $(jq -r "$QUERY_INBOUND"'.settings.clients[] | .email' "$FILE_CONFIG") ; do
-                cur_conn="$(grep -wF "email: $email" "$dest" | cut -d' ' -f3 | cut -d':' -f1 | sort | uniq | wc -l)"
+                cur_conn="$(grep -wF "email: $email" "$dest" | grep -w "accepted" | cut -d' ' -f3 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | sort | uniq | wc -l)"
                 max_conn="${email%@*}"
                 if ! [[ "$max_conn" =~ ^[0-9]+$ ]] ; then
                         echo "${email} ${cur_conn}" | tee -a "$FILE_USAGE"
@@ -188,7 +188,7 @@ check() {
                 cur_all=$(($cur_conn + $cur_all)) ; max_all=$(($max_conn + $max_all))
                 final="${email#*@} ${cur_conn}/${max_conn}"
                 [[ "$FLAG_ALLUSERS" == 1 ]] && echo "$final"
-                [[ $cur_conn > $max_conn ]] && echo "$final" | tee -a "$FILE_USAGE" | tee -a "$FILE_STRIKES" 
+                [ $cur_conn -gt $max_conn ] && echo "$final" | tee -a "$FILE_USAGE" | tee -a "$FILE_STRIKES" 
         done
         echo "Total: $cur_all/$max_all" | tee -a "$FILE_USAGE"
         echo "<----" | tee -a "$FILE_USAGE"
