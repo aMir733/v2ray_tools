@@ -33,46 +33,7 @@ root@server:~/v2ray_tools# ./v2ray_tools.sh get 1@joe -i [ip address] -n [vpn na
 root@server:~/v2ray_tools# ./v2ray_tools.sh check
 ```
 
-# Example v2ray configuration file
-```json
-{
-  "log": {
-    "access": "/var/log/v2ray/access.log",
-    "error": "/var/log/v2ray/error.log",
-    "loglevel": "warning"
-  },
-  "inbounds": [
-    {
-      "port": 80,
-      "protocol": "vmess",
-      "settings": {
-        "clients": [
-          {
-            "id": "4a9cf2fe-aeca-aa7e-15ac-0278983b07e0",
-            "email": "3@jane", // 3 is the number of devices allowed for user jane
-            "alterId": 0
-          },
-          {
-            "id": "f872bb51-6c2e-6543-95c5-a756aefe21d6",
-            "email": "1@joe",
-            "alterId": 0
-          }
-        ]
-      },
-      "streamSettings": {
-        "network": "ws",
-        "path": "/",
-        "headers": {
-          "Host": "aparat.com"
-        }
-      }
-    }
-  ],
-  "outbound": {
-    "protocol": "freedom",
-    "settings": {}
-  }
-}
+#### [Example v2ray configuration](example_config.json)
 ```
 
 # Last words

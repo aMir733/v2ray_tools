@@ -1,0 +1,38 @@
+{
+  "log": {
+    "access": "/var/log/v2ray/access.log",
+    "error": "/var/log/v2ray/error.log",
+    "loglevel": "warning"
+  },
+  "inbounds": [
+    {
+      "port": 80,
+      "protocol": "vmess",
+      "settings": {
+        "clients": [
+          {
+            "id": "4a9cf2fe-aeca-aa7e-15ac-0278983b07e0",
+            "email": "3@jane",
+            "alterId": 0
+          },
+          {
+            "id": "f872bb51-6c2e-6543-95c5-a756aefe21d6",
+            "email": "1@joe",
+            "alterId": 0
+          }
+        ]
+      },
+      "streamSettings": {
+        "network": "ws",
+        "path": "/",
+        "headers": {
+          "Host": "google.com"
+        }
+      }
+    }
+  ],
+  "outbound": {
+    "protocol": "freedom",
+    "settings": {}
+  }
+}
