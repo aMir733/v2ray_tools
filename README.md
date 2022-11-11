@@ -34,7 +34,6 @@ root@server:~/v2ray_tools# ./v2ray_tools.sh check
 ```
 
 #### [Example v2ray configuration](example_config.json)
-```
 
 # Last words
 ![last-words](https://i.imgur.com/wM4U85h.jpg)
