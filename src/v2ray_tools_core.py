@@ -1,12 +1,10 @@
-import sqlite3
-import re
+from re import compile as recompile
 from json import load as jsonload, dump as jsondump
 
-db_file = "customers.db"
-pattern_uuid = r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$'
-pattern_word = r'^[0-9A-Za-z]{,24}$'
-sqlite3_create_tables = """
-CREATE TABLE IF NOT EXISTS users (
+class Database(object):
+    def __init__(self, db_path="customers.db"):
+        import sqlite3
+        sqlite3_create_tables = """CREATE TABLE IF NOT EXISTS users (
 id INTEGER PRIMARY KEY,
 phone TEXT UNIQUE NOT NULL,
 count INTEGER NOT NULL,
@@ -21,13 +19,16 @@ paid INTEGER,
 start INTEGER,
 FOREIGN KEY(user_id) REFERENCES users(id)
 );
+CREATE TABLE IF NOT EXISTS deleted (
+id INTEGER PRIMARY KEY,
+user_id INTEGER,
+phone TEXT,
+count INTEGER,
+uuid TEXT,
+FOREIGN KEY(user_id) REFERENCES users(id)
+);
 """
-
-class Database(object):
-    con = None
-    cur = None
-    def __init__(self):
-        Database.con = sqlite3.connect(db_file)
+        Database.con = sqlite3.connect(db_path)
         Database.cur = Database.con.cursor()
         Database.cur.executescript(sqlite3_create_tables)
 
@@ -69,7 +70,8 @@ def add_user(
         count, # Number of devices allowed
         uuid,
         ):
-    if not re.compile(pattern_uuid).match(uuid):
+    pattern_uuid = r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$'
+    if not recompile(pattern_uuid).match(uuid):
         raise ValueError("Invalid UUID")
     db.cur.execute("INSERT INTO users (phone, count, uuid) VALUES (?, ?, ?)", (phone, count, uuid))
     db.con.commit()
@@ -79,15 +81,50 @@ def get_user(
         query, # An array or a tuple: (column name, query)
         size=1,
         ):
-    if len(query) != 2:
-        raise ValueError("Invalid query. query needs to be a tuple containing the column name and the query")
-    if not re.compile(pattern_word).match(query[0]):
-        raise ValueError("No SQL Injection allowed")
+    check_query(query)
     res = db.cur.execute("SELECT * FROM users WHERE {} LIKE ?".format(query[0]), (query[1],))
+    if size == 0:
+        return res.fetchall()
     return res.fetchmany(size=size)
 
 def del_user(
         db, # Database object
-        query, # UUID or Phone number
+        query, # An array or a tuple: (column name, query)
         ):
-    pass
+    check_query(query)
+    res = get_user(db, query)
+    if len(res) < 4:
+        raise ValueError("Invalid number of columns received from get_user")
+    if len(res) > 4:
+        res = [i[:-1] for i in res]
+    db.cur.execute("DELETE FROM users WHERE {} LIKE ? LIMIT 1".format(query[0]), (query[1],))
+    db.cur.executemany("INSERT INTO deleted (user_id, phone, count, uuid) VALUES ( ?, ?, ?, ? )", res)
+    db.con.commit()
+
+def mod_user(
+        db,
+        query, # An array or a tuple: (column name, query)
+        **kwargs, # columns to be changed
+        ):
+    check_query(query)
+    if len(kwargs) < 1:
+        raise IndexError("At least one kwarg is required for this function")
+    set_string = []
+    pattern_word = r'^[0-9A-Za-z]{,24}$'
+    for kwarg in kwargs:
+        if not recompile(pattern_word).match(kwarg):
+            raise ValueError("No SQL Injection allowed")
+        set_string.append("{} = ?".format(kwarg))
+    res = db.cur.execute(
+            "UPDATE users SET {} WHERE {} = ?".format(', '.join(set_string), query[0]),
+            tuple(kwargs.values()) + (query[1],)
+            )
+    db.con.commit()
+    return res
+
+def check_query(query):
+    pattern_word = r'^[0-9A-Za-z]{,24}$'
+    if len(query) != 2:
+        raise ValueError("Query needs to be a tuple containing the column name and the query")
+    if not recompile(pattern_word).match(query[0]):
+        raise ValueError("No SQL Injection allowed")
