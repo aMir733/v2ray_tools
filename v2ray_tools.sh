@@ -201,6 +201,7 @@ restart_v2ray() {
     for server in ${LIST_SERVERS[@]} ; do
             output INFO "Restarting $NAME_SERVICE on $server server"
             [[ $server == this ]] && { systemctl restart $NAME_SERVICE ; continue ;}
+            scp $FILE_CONFIG root@$server:$FILE_CONFIG
             ssh root@$server systemctl restart $NAME_SERVICE || { output WARNING "Skipping $server: failed to restart" ;}
     done
 }
