@@ -179,7 +179,8 @@ check() {
         max_all=0
         echo "----> $(date +%y%m%d_%H%M%S):" | tee -a "$FILE_USAGE"
         for email in $(jq -r "$QUERY_INBOUND"'.settings.clients[] | .email' "$FILE_CONFIG") ; do
-                cur_conn="$(grep -wF "email: $email" "$dest" | grep -w "accepted" | cut -d' ' -f3 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | sort | uniq | wc -l)"
+                ips="$(grep -wF "email: $email" "$dest" | grep -w "accepted" | cut -d' ' -f3 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | sort | uniq)"
+                cur_conn="$(echo -n "$isp" | grep -c '^')"
                 max_conn="${email%@*}"
                 if ! [[ "$max_conn" =~ ^[0-9]+$ ]] ; then
                         echo "${email} ${cur_conn}" | tee -a "$FILE_USAGE"
@@ -187,8 +188,9 @@ check() {
                 fi
                 cur_all=$(($cur_conn + $cur_all)) ; max_all=$(($max_conn + $max_all))
                 final="${email#*@} ${cur_conn}/${max_conn}"
-                [[ "$FLAG_ALLUSERS" == 1 ]] && echo "$final"
-                [ $cur_conn -gt $max_conn ] && echo "$final" | tee -a "$FILE_USAGE" | tee -a "$FILE_STRIKES" 
+                [[ "$FLAG_ALLUSERS" == 1 ]] && echo -e "${final}\n\t${ips}"
+                [ $cur_conn -gt $max_conn ] && echo -e "${final}\n\t${ips}" | tee -a "$FILE_USAGE" | tee -a "$FILE_STRIKES" 
+                echo "$ips"
         done
         echo "Total: $cur_all/$max_all" | tee -a "$FILE_USAGE"
         echo "<----" | tee -a "$FILE_USAGE"
@@ -210,7 +212,7 @@ check_unapplied() {
 }
 
 print_usage() {
-    printf "%b" "Usage: ${0} [command] [-inqwa]\n\tcommand)\n\t\tadd) Add new users\n\t\tdel) Invalidate users UUID\n\t\tget) Get user's QR code and link\n\t\tapply) Applies the configuration located at ${FILE_NEWCONFIG} to ${FILE_CONFIG}\n\t\tcheck) Checks the logs and outputs the number of devices used by each user\n\t\terestart) Restarts the v2ray service for servers listed in ${FILE_SERVERS} (use 'this' for current running server)\n\tFlags)\n\t\t-i|--ip-address) IP address of the server to set in the QR code and the link given to the user. Default: ${FLAG_ADDRESS}\n\t\t-n|--vpn-name) A name to set in the QR code and the link given to the user. Default: ${FLAG_NAME}\n\t\t-q|--qr-size) The size of the QR code outputted to the screen. Between 0-2. Set to 0 to detect the screen's size automatically. Default: ${FLAG_QRSIZE}\n\t\t-w|--wait) How long to wait for incoming requests to capture the IP addresses of users (in seconds). Used in the check function. Default: ${FLAG_WAITTIME}\n\t\t-a|--all) Output every user even the ones who haven't exceeded the allowed number of devices. Used in the check function.\n\n"
+    printf "%b" "Usage: ${0} [command] [-inqwa]\n\tcommand)\n\t\tadd) Add new users\n\t\tdel) Invalidate users UUID\n\t\tget) Get user's QR code and link\n\t\tapply) Applies the configuration located at ${FILE_NEWCONFIG} to ${FILE_CONFIG}\n\t\tcheck) Checks the logs and outputs the number of devices used by each user\n\t\trestart) Restarts the v2ray service for servers listed in ${FILE_SERVERS} (use 'this' for current running server)\n\tFlags)\n\t\t-i|--ip-address) IP address of the server to set in the QR code and the link given to the user. Default: ${FLAG_ADDRESS}\n\t\t-n|--vpn-name) A name to set in the QR code and the link given to the user. Default: ${FLAG_NAME}\n\t\t-q|--qr-size) The size of the QR code outputted to the screen. Between 0-2. Set to 0 to detect the screen's size automatically. Default: ${FLAG_QRSIZE}\n\t\t-w|--wait) How long to wait for incoming requests to capture the IP addresses of users (in seconds). Used in the check function. Default: ${FLAG_WAITTIME}\n\t\t-a|--all) Output every user even the ones who haven't exceeded the allowed number of devices. Used in the check function.\n\n"
 }
 
 dep_check() {
