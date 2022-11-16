@@ -180,17 +180,16 @@ check() {
         echo "----> $(date +%y%m%d_%H%M%S):" | tee -a "$FILE_USAGE"
         for email in $(jq -r "$QUERY_INBOUND"'.settings.clients[] | .email' "$FILE_CONFIG") ; do
                 ips="$(grep -wF "email: $email" "$dest" | grep -w "accepted" | cut -d' ' -f3 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | sort | uniq)"
-                cur_conn="$(echo -n "$isp" | grep -c '^')"
+                cur_conn="$(echo -n "$ips" | grep -c '^')"
                 max_conn="${email%@*}"
                 if ! [[ "$max_conn" =~ ^[0-9]+$ ]] ; then
-                        echo "${email} ${cur_conn}" | tee -a "$FILE_USAGE"
+                        echo "${email} ${cur_conn}\n${ips//$'\n'/ }" | tee -a "$FILE_USAGE"
                         continue
                 fi
                 cur_all=$(($cur_conn + $cur_all)) ; max_all=$(($max_conn + $max_all))
                 final="${email#*@} ${cur_conn}/${max_conn}"
-                [[ "$FLAG_ALLUSERS" == 1 ]] && echo -e "${final}\n\t${ips}"
-                [ $cur_conn -gt $max_conn ] && echo -e "${final}\n\t${ips}" | tee -a "$FILE_USAGE" | tee -a "$FILE_STRIKES" 
-                echo "$ips"
+                [[ "$FLAG_ALLUSERS" == 1 ]] && echo -e "${final}\n${ips//$'\n'/ }"
+                [ $cur_conn -gt $max_conn ] && echo -e "${final}\n${ips//$'\n'/ }" | tee -a "$FILE_USAGE" | tee -a "$FILE_STRIKES" 
         done
         echo "Total: $cur_all/$max_all" | tee -a "$FILE_USAGE"
         echo "<----" | tee -a "$FILE_USAGE"
