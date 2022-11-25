@@ -138,7 +138,7 @@ res_user() {
     cp "$FILE_CONFIG" "$FILE_NEWCONFIG"
     for user in ${args[@]} ; do
         uuid_new="$(cat ${FILE_DELETED} | grep -w "$user" | sort | uniq | cut -d' ' -f2)"
-        [[ $(echo -n "$uuid_old" | grep -c "^") != 1 ]] && { output INFO "Skipping $user: No user was found or multiple users were found ( In ${FILE_DELETED} )" ; continue ;}
+        [[ $(echo -n "$uuid_new" | grep -c "^") != 1 ]] && { output INFO "Skipping $user: No user was found or multiple users were found ( In ${FILE_DELETED} )" ; continue ;}
         email="$(jq -r "$QUERY_INBOUND"'.settings.clients[] | select(.email | test("'"$user"'")).email' "$FILE_NEWCONFIG")"
         [[ $(echo -n "$email" | grep -c "^") != 1 ]] && { output INFO "Skipping $user: No user was found or multiple users were found." ; continue ;}
         for i in $email ; do output INFO "Found $email" ; done
