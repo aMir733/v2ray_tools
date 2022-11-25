@@ -34,7 +34,8 @@ main () {
         case "$1" in
             get) shift ; get_user $@ ;;
             add) shift ; add_user $@ ;;
-            del) shift ; del_user $@ ;; 
+            del) shift ; del_user $@ ;;
+            res) shift ; res_user $@ ;;
             check) shift ; check $@ ;; 
             apply) shift ; apply ;; 
             restart) shift ; restart_v2ray ;;
@@ -106,6 +107,7 @@ add_user() {
         grep -qwF "${user#*@}" "$FILE_NEWCONFIG" && { output INFO "Skipping user $user: User exists" ; continue ;}
         uuid="$($PATH_V2RAY uuid)"
         jq -r '('"$QUERY_INBOUND"'.settings.clients) += [{"id":"'$uuid'","email":"'$user'","level":1,"alterId":0}]' "$FILE_NEWCONFIG" > "${FILE_NEWCONFIG}_temp"
+        echo $uuid
         mv "${FILE_NEWCONFIG}_temp" "$FILE_NEWCONFIG"
     done
 }
@@ -126,6 +128,23 @@ del_user() {
         jq -r '('"$user_jq"').id = "'"$uuid_new"'"' "$FILE_NEWCONFIG" > "${FILE_NEWCONFIG}_tmp"
         mv "${FILE_NEWCONFIG}_tmp" "$FILE_NEWCONFIG"
         echo "$email $uuid_old" >> ${FILE_DELETED}_pending
+    done
+}
+
+res_user() {
+    parse_args $@
+    [[ -f "$FILE_CONFIG" ]] || output ERROR "Could not find configuration file $FILE_CONFIG"
+    check_unapplied
+    cp "$FILE_CONFIG" "$FILE_NEWCONFIG"
+    for user in ${args[@]} ; do
+        uuid_new="$(cat ${FILE_DELETED} | grep -w "$user" | sort | uniq | cut -d' ' -f2)"
+        [[ $(echo -n "$uuid_old" | grep -c "^") != 1 ]] && { output INFO "Skipping $user: No user was found or multiple users were found ( In ${FILE_DELETED} )" ; continue ;}
+        email="$(jq -r "$QUERY_INBOUND"'.settings.clients[] | select(.email | test("'"$user"'")).email' "$FILE_NEWCONFIG")"
+        [[ $(echo -n "$email" | grep -c "^") != 1 ]] && { output INFO "Skipping $user: No user was found or multiple users were found." ; continue ;}
+        for i in $email ; do output INFO "Found $email" ; done
+        user_jq="$QUERY_INBOUND"'.settings.clients[] | select(.email=="'$email'")'
+        jq -r '('"$user_jq"').id = "'"$uuid_new"'"' "$FILE_NEWCONFIG" > "${FILE_NEWCONFIG}_tmp"
+        mv "${FILE_NEWCONFIG}_tmp" "$FILE_NEWCONFIG"
     done
 }
 
@@ -212,7 +231,7 @@ check_unapplied() {
 }
 
 print_usage() {
-    printf "%b" "Usage: ${0} [command] [-inqwa]\n\tcommand)\n\t\tadd) Add new users\n\t\tdel) Invalidate users UUID\n\t\tget) Get user's QR code and link\n\t\tapply) Applies the configuration located at ${FILE_NEWCONFIG} to ${FILE_CONFIG}\n\t\tcheck) Checks the logs and outputs the number of devices used by each user\n\t\trestart) Restarts the v2ray service for servers listed in ${FILE_SERVERS} (use 'this' for current running server)\n\tFlags)\n\t\t-i|--ip-address) IP address of the server to set in the QR code and the link given to the user. Default: ${FLAG_ADDRESS}\n\t\t-n|--vpn-name) A name to set in the QR code and the link given to the user. Default: ${FLAG_NAME}\n\t\t-q|--qr-size) The size of the QR code outputted to the screen. Between 0-2. Set to 0 to detect the screen's size automatically. Default: ${FLAG_QRSIZE}\n\t\t-w|--wait) How long to wait for incoming requests to capture the IP addresses of users (in seconds). Used in the check function. Default: ${FLAG_WAITTIME}\n\t\t-a|--all) Output every user even the ones who haven't exceeded the allowed number of devices. Used in the check function.\n\n"
+    printf "%b" "Usage: ${0} [command] [-inqwa]\n\tcommand)\n\t\tadd) Add new users\n\t\tdel) Invalidate users UUID\n\t\tres) Restore deleted user\n\t\tget) Get user's QR code and link\n\t\tapply) Applies the configuration located at ${FILE_NEWCONFIG} to ${FILE_CONFIG}\n\t\tcheck) Checks the logs and outputs the number of devices used by each user\n\t\trestart) Restarts the v2ray service for servers listed in ${FILE_SERVERS} (use 'this' for current running server)\n\tFlags)\n\t\t-i|--ip-address) IP address of the server to set in the QR code and the link given to the user. Default: ${FLAG_ADDRESS}\n\t\t-n|--vpn-name) A name to set in the QR code and the link given to the user. Default: ${FLAG_NAME}\n\t\t-q|--qr-size) The size of the QR code outputted to the screen. Between 0-2. Set to 0 to detect the screen's size automatically. Default: ${FLAG_QRSIZE}\n\t\t-w|--wait) How long to wait for incoming requests to capture the IP addresses of users (in seconds). Used in the check function. Default: ${FLAG_WAITTIME}\n\t\t-a|--all) Output every user even the ones who haven't exceeded the allowed number of devices. Used in the check function.\n\n"
 }
 
 dep_check() {
