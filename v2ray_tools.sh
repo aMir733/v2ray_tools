@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 DIR_SCRIPT="/root/v2ray_tools"
-DIR_LOG="/var/log/v2ray"
-FILE_CONFIG=/etc/v2ray/config.json
+DIR_LOG="/var/log/ray"
+FILE_CONFIG=/etc/ray/ray.json
 FILE_NEWCONFIG="$DIR_SCRIPT/$(basename -- "$FILE_CONFIG")_new"
 FILE_OLDCONFIG="$DIR_SCRIPT/$(basename -- "$FILE_CONFIG")_old"
 FILE_DELETED="$DIR_SCRIPT/deleted"
@@ -14,10 +14,10 @@ FLAG_ADDRESS=1.1.1.1
 FLAG_NAME="$(basename -- "$FILE_CONFIG" | sed 's/\.[^.]*$//')"
 FLAG_SECURITY=none
 FLAG_QRSIZE=0
-FLAG_WAITTIME=60
+FLAG_WAITTIME=30
 FLAG_ALLUSERS=0
 # --- DEFAULT FLAGS ---
-NAME_SERVICE="v2ray@$(basename -- "$FILE_CONFIG" | sed 's/\.[^.]*$//')"
+NAME_SERVICE="xray@$(basename -- "$FILE_CONFIG" | sed 's/\.[^.]*$//')"
 LIST_SERVERS=(this)
 PATH_V2RAY=v2ray
 QUERY_INBOUND='if .inbounds == null then .inbound else .inbounds[] end | select(.protocol=="vmess" or .protocol=="vless")'
